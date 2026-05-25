@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, LogOut, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 
-export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteSaree }) {
+export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree }) {
   // Simulated Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminPin, setAdminPin] = useState('');
@@ -16,6 +16,9 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [isSold, setIsSold] = useState(false);
+  
+  // Track if we are editing an existing item
+  const [editingSaree, setEditingSaree] = useState(null);
   
   const CORRECT_PIN = '1234'; // Simple secure pin for Mom to access the panel
 
@@ -42,6 +45,29 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
     }
   };
 
+  const startEditing = (saree) => {
+    setEditingSaree(saree);
+    setTitle(saree.title);
+    setCode(saree.code);
+    setType(saree.type);
+    setDescription(saree.description);
+    setImagePreview(saree.image);
+    setIsSold(saree.sold);
+    // Scroll form into view for mobile users
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEditing = () => {
+    setEditingSaree(null);
+    setTitle('');
+    setCode('');
+    setType('kalamkari');
+    setDescription('');
+    setImageFile(null);
+    setImagePreview('');
+    setIsSold(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title || !code || !description || !imagePreview) {
@@ -49,17 +75,34 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
       return;
     }
 
-    const newSaree = {
-      id: `saree-${Date.now()}`,
-      code: code.toUpperCase(),
-      title,
-      type,
-      description,
-      image: imagePreview,
-      sold: isSold
-    };
+    if (editingSaree) {
+      const updatedSaree = {
+        ...editingSaree,
+        code: code.toUpperCase(),
+        title,
+        type,
+        description,
+        image: imagePreview,
+        sold: isSold
+      };
 
-    onAddSaree(newSaree);
+      onUpdateSaree(updatedSaree);
+      setEditingSaree(null);
+      alert('Saree updated successfully!');
+    } else {
+      const newSaree = {
+        id: `saree-${Date.now()}`,
+        code: code.toUpperCase(),
+        title,
+        type,
+        description,
+        image: imagePreview,
+        sold: isSold
+      };
+
+      onAddSaree(newSaree);
+      alert('Saree added successfully!');
+    }
     
     // Reset Form
     setTitle('');
@@ -69,8 +112,6 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
     setImageFile(null);
     setImagePreview('');
     setIsSold(false);
-    
-    alert('Saree added successfully!');
   };
 
   if (!isAuthenticated) {
@@ -120,7 +161,7 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
         {/* Left Side: Add Saree Form */}
         <div>
           <form className="admin-card" onSubmit={handleSubmit} style={{ margin: '0', maxWidth: '100%' }}>
-            <h2 style={{ fontSize: '24px', marginBottom: '24px', color: 'var(--primary-indigo)' }}>Upload New Saree</h2>
+            <h2 style={{ fontSize: '24px', marginBottom: '24px', color: 'var(--primary-indigo)' }}>{editingSaree ? `Edit Saree ${editingSaree.code}` : 'Upload New Saree'}</h2>
             
             <div className="form-group">
               <label className="form-label">Saree Code</label>
@@ -225,10 +266,17 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '12px' }}>
-              <Plus size={18} />
-              Publish Saree to Showroom
-            </button>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                 {editingSaree ? <Check size={18} /> : <Plus size={18} />}
+                 {editingSaree ? 'Save Saree Details' : 'Publish Saree to Showroom'}
+               </button>
+               {editingSaree && (
+                 <button type="button" className="btn-secondary" onClick={cancelEditing} style={{ width: '100%', justifyContent: 'center' }}>
+                   Cancel Edit
+                 </button>
+               )}
+             </div>
           </form>
         </div>
 
@@ -259,6 +307,15 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
                     />
                     <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
                   </div>
+
+                  {/* Edit button */}
+                  <button 
+                    onClick={() => startEditing(saree)}
+                    style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
+                    title="Edit Saree Details"
+                  >
+                    <Edit2 size={16} />
+                  </button>
 
                   {/* Delete button */}
                   <button 

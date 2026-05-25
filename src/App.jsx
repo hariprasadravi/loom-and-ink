@@ -31,6 +31,14 @@ function App() {
     );
   };
 
+  const handleUpdateSaree = (updatedSaree) => {
+    setSarees((prev) => 
+      prev.map((saree) => 
+        saree.id === updatedSaree.id ? updatedSaree : saree
+      )
+    );
+  };
+
   const handleDeleteSaree = (id) => {
     setSarees((prev) => prev.filter((saree) => saree.id !== id));
   };
@@ -74,6 +82,7 @@ function App() {
           <AdminPanel 
             sarees={sarees}
             onAddSaree={handleAddSaree}
+            onUpdateSaree={handleUpdateSaree}
             onToggleSold={handleToggleSold}
             onDeleteSaree={handleDeleteSaree}
           />
