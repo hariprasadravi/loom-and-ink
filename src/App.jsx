@@ -132,7 +132,12 @@ function App() {
       <header className="header-nav">
         <div className="container nav-container">
           <a href="#" className="logo-link" onClick={() => setActiveTab('showroom')}>
-            <span className="logo-brand">LOOM & LACE</span>
+            <span className="logo-brand" style={{ letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              PATTUPOL 
+              <span style={{ fontFamily: "'Pavanam', sans-serif", fontSize: '18px', fontWeight: '500', color: 'var(--accent-terracotta)', textTransform: 'none', opacity: '0.9' }}>
+                பட்டுப்போல்
+              </span>
+            </span>
             <span className="logo-sub">onlyKalamkari & Silk Cotton</span>
           </a>
           
@@ -159,7 +164,7 @@ function App() {
           // Elegant loading spinner
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 0', gap: '16px' }}>
             <Loader2 className="animate-spin" size={40} style={{ color: 'var(--primary-indigo)', animation: 'spin 1s linear infinite' }} />
-            <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-muted)' }}>Opening the Loom & Lace Showroom...</p>
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-muted)' }}>Opening the Pattupol Showroom...</p>
             <style>{`
               @keyframes spin {
                 from { transform: rotate(0deg); }
@@ -267,14 +272,19 @@ create policy "Allow admin full access"
       {/* Premium Elegant Footer */}
       <footer className="footer">
         <div className="container">
-          <div className="footer-logo">LOOM & LACE</div>
+          <div className="footer-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            PATTUPOL 
+            <span style={{ fontFamily: "'Pavanam', sans-serif", fontSize: '18px', fontWeight: '500', color: 'var(--accent-gold)', textTransform: 'none' }}>
+              பட்டுப்போல்
+            </span>
+          </div>
           <p style={{ marginBottom: '16px' }}>Curating authentic Indian handloom weaves and hand-painted art since 2020.</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', margin: '20px 0', fontSize: '14px' }}>
             <span style={{ color: 'var(--text-dark)', fontWeight: '500' }}>📍 Chennai, India (Weaving & Curation)</span>
             <span style={{ color: 'var(--text-dark)', fontWeight: '500' }}>🌐 Available Worldwide</span>
           </div>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '24px' }}>
-            © {new Date().getFullYear()} Loom & Lace. All rights reserved. Designed with love.
+            © {new Date().getFullYear()} Pattupol. All rights reserved. Designed with love.
           </p>
         </div>
       </footer>
