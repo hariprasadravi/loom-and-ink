@@ -12,7 +12,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [loginLoading, setLoginLoading] = useState(false);
 
   // OTP Authentication State
-  const [loginMode, setLoginMode] = useState('otp'); // 'otp' or 'password'
+  const [loginMode, setLoginMode] = useState('password'); // 'otp' or 'password'
   const [otpSent, setOtpSent] = useState(false);
   const [otpToken, setOtpToken] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
