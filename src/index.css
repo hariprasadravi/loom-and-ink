@@ -1,6 +1,8 @@
 /* Loom & Ink - Global CSS Stylesheet */
 
 :root {
+  color-scheme: light; /* Strictly enforce light mode, preventing browsers from forcing navy-blue dark mode inversions */
+  
   /* Artisanal Color System */
   --primary-indigo: #1e3a5f;      /* Classic Indigo dye */
   --primary-terracotta: #ab47bc;  /* Deep terracotta / traditional red-brown */
