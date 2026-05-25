@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, MessageSquare, Eye } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 
-export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919876543210" }) {
+export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835" }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeType, setActiveType] = useState('all');

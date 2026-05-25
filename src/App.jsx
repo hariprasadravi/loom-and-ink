@@ -68,6 +68,7 @@ function App() {
           <Showroom 
             sarees={sarees} 
             onViewSaree={setSelectedSaree} 
+            whatsappNumber="919840709835"
           />
         ) : (
           <AdminPanel 
