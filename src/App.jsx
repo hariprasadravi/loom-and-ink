@@ -10,12 +10,14 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('showroom'); // 'showroom' or 'admin'
   const [selectedSaree, setSelectedSaree] = useState(null); // Saree for magnifier modal
+  const [dbError, setDbError] = useState(null); // Database error tracking
 
   // Fetch sarees from Supabase on mount
   useEffect(() => {
     const fetchSarees = async () => {
       try {
         setLoading(true);
+        setDbError(null);
         // Query the 'sarees' table ordered by creation time
         const { data, error } = await supabase
           .from('sarees')
@@ -39,6 +41,7 @@ function App() {
         }
       } catch (err) {
         console.error('Error fetching sarees from database:', err);
+        setDbError(err);
       } finally {
         setLoading(false);
       }
@@ -163,6 +166,86 @@ function App() {
                 to { transform: rotate(360deg); }
               }
             `}</style>
+          </div>
+        ) : dbError ? (
+          // Elegant database diagnostic panel!
+          <div className="container" style={{ padding: '60px 20px', maxWidth: '800px' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '40px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', border: '1px solid #ebdcb9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <span style={{ fontSize: '32px' }}>⚙️</span>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--accent-terracotta)', margin: '0' }}>Database Diagnostics</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>Supabase connection status report</p>
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#fffaf0', borderLeft: '4px solid var(--accent-terracotta)', padding: '16px', borderRadius: '4px', marginBottom: '32px' }}>
+                <strong style={{ color: 'var(--text-dark)', fontSize: '14px' }}>Connection Error Details:</strong>
+                <p style={{ fontFamily: 'monospace', color: '#c53030', margin: '8px 0 0', fontSize: '13px', wordBreak: 'break-all' }}>
+                  {dbError.message || JSON.stringify(dbError)}
+                </p>
+              </div>
+
+              <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)', fontSize: '18px', marginBottom: '12px' }}>How to Resolve This in 1 Minute</h3>
+              <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                This error typically occurs if the <code style={{ backgroundColor: '#f3ebdf', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px' }}>sarees</code> table is missing or if Supabase **Row-Level Security (RLS)** is preventing access without active policies.
+              </p>
+
+              <ol style={{ fontSize: '14px', lineHeight: '1.8', color: 'var(--text-dark)', paddingLeft: '20px', marginBottom: '32px' }}>
+                <li>Log in to your <strong><a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-indigo)', textDecoration: 'underline' }}>Supabase Dashboard</a></strong>.</li>
+                <li>Select your project <strong>wyxoffulgvtnzqpzbkle</strong>.</li>
+                <li>Go to the <strong>SQL Editor</strong> tab on the left navigation bar.</li>
+                <li>Click <strong>New Query</strong>, paste the SQL script below, and click <strong>Run</strong>:</li>
+              </ol>
+
+              <div style={{ position: 'relative', marginBottom: '24px' }}>
+                <pre style={{ backgroundColor: '#2d3748', color: '#edf2f7', padding: '20px', borderRadius: '8px', overflowX: 'auto', fontSize: '13px', fontFamily: 'monospace', lineHeight: '1.5', maxHeight: '250px' }}>
+{`-- 1. Create sarees table (if missing)
+create table if not exists public.sarees (
+  id text primary key,
+  code text not null unique,
+  title text not null,
+  type text not null,
+  description text not null,
+  price text,
+  image text not null,
+  sold boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 2. Enable Row-Level Security
+alter table public.sarees enable row level security;
+
+-- 3. Policy: Public users can search/view sarees
+create policy "Allow public read access" 
+  on public.sarees for select 
+  using (true);
+
+-- 4. Policy: Authenticated admins have full CRUD access
+create policy "Allow admin full access" 
+  on public.sarees for all 
+  to authenticated 
+  using (true) 
+  with check (true);`}
+                </pre>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="btn-primary"
+                >
+                  Reload Showroom
+                </button>
+                <button 
+                  onClick={() => setDbError(null)} 
+                  className="btn-secondary"
+                  style={{ border: 'none', background: 'none', textDecoration: 'underline', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  Proceed to Site Anyway
+                </button>
+              </div>
+            </div>
           </div>
         ) : activeTab === 'showroom' ? (
           <Showroom 

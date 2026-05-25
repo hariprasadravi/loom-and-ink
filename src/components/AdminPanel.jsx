@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check } from 'lucide-react';
+import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Clock } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
@@ -10,6 +10,12 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // OTP Authentication State
+  const [loginMode, setLoginMode] = useState('otp'); // 'otp' or 'password'
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpToken, setOtpToken] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -43,6 +49,68 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Resend code countdown timer
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      setLoginError('Please enter your email address.');
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
+      setLoginError('');
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false, // Prevents unknown signups
+        }
+      });
+
+      if (error) throw error;
+      setOtpSent(true);
+      setResendTimer(60);
+    } catch (err) {
+      setLoginError(err.message || 'Error sending code. Please verify that your email is registered in Supabase.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otpToken) {
+      setLoginError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
+      setLoginError('');
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpToken,
+        type: 'email'
+      });
+
+      if (error) throw error;
+    } catch (err) {
+      setLoginError(err.message || 'Invalid or expired code. Please try again.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -156,39 +224,163 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
   if (!isAuthenticated) {
     return (
-      <div className="login-container" style={{ backgroundColor: 'var(--bg-card)' }}>
-        <h2 style={{ textAlign: 'center', color: 'var(--primary-indigo)', marginBottom: '16px' }}>Admin Dashboard</h2>
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '24px' }}>
-          Log in with your secure account to manage the Loom & Lace showroom catalog.
+      <div className="login-container" style={{ backgroundColor: 'var(--bg-card)', maxWidth: '420px', margin: '60px auto', borderRadius: '12px', padding: '32px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', border: '1px solid var(--border-color)' }}>
+        <h2 style={{ textAlign: 'center', color: 'var(--primary-indigo)', marginBottom: '8px', fontSize: '26px' }}>Admin Dashboard</h2>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px' }}>
+          Secure management access for Chennai & US team members.
         </p>
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input 
-              type="email" 
-              placeholder="e.g. mom@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="form-input"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="form-input"
-              required
-            />
-          </div>
-          {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>{loginError}</p>}
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
-            {loginLoading ? 'Authenticating...' : 'Secure Log In'}
+
+        {/* Tab Switcher */}
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '24px', paddingBottom: '8px' }}>
+          <button 
+            type="button"
+            onClick={() => { setLoginMode('otp'); setLoginError(''); }}
+            style={{
+              flex: 1,
+              background: 'none',
+              border: 'none',
+              padding: '8px 4px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              color: loginMode === 'otp' ? 'var(--primary-indigo)' : 'var(--text-muted)',
+              borderBottom: loginMode === 'otp' ? '2px solid var(--primary-indigo)' : '2px solid transparent',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Email OTP (Passwordless)
           </button>
-        </form>
+          <button 
+            type="button"
+            onClick={() => { setLoginMode('password'); setLoginError(''); }}
+            style={{
+              flex: 1,
+              background: 'none',
+              border: 'none',
+              padding: '8px 4px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              color: loginMode === 'password' ? 'var(--primary-indigo)' : 'var(--text-muted)',
+              borderBottom: loginMode === 'password' ? '2px solid var(--primary-indigo)' : '2px solid transparent',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Password Login
+          </button>
+        </div>
+
+        {/* Tab 1: OTP Login Flow */}
+        {loginMode === 'otp' ? (
+          !otpSent ? (
+            <form onSubmit={handleSendOtp}>
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                  <Mail size={14} style={{ color: 'var(--accent-gold)' }} /> Registered Email Address
+                </label>
+                <input 
+                  type="email" 
+                  placeholder="e.g. mom@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+              {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center', lineHeight: '1.4' }}>{loginError}</p>}
+              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
+                {loginLoading ? 'Requesting Code...' : 'Get Secure OTP Code'}
+              </button>
+              <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px' }}>
+                A 6-digit numeric login code will be sent straight to your inbox.
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp}>
+              <p style={{ fontSize: '13px', color: '#2f855a', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', backgroundColor: '#f0fff4', padding: '8px', borderRadius: '6px', border: '1px solid #c6f6d5' }}>
+                <Check size={14} /> Code sent to <strong>{email}</strong>
+              </p>
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                  <KeyRound size={14} style={{ color: 'var(--accent-gold)' }} /> Enter 6-Digit Passcode
+                </label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="••••••"
+                  value={otpToken}
+                  onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
+                  className="form-input"
+                  style={{ letterSpacing: '0.4em', textAlign: 'center', fontWeight: 'bold', fontSize: '18px' }}
+                  required
+                  autoFocus
+                />
+              </div>
+              {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center', lineHeight: '1.4' }}>{loginError}</p>}
+              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
+                {loginLoading ? 'Verifying...' : 'Verify & Log In'}
+              </button>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', fontSize: '13px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setOtpSent(false); setOtpToken(''); setLoginError(''); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0', fontSize: '13px' }}
+                >
+                  <ArrowLeft size={14} /> Change Email
+                </button>
+
+                {resendTimer > 0 ? (
+                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                    <Clock size={12} /> Resend in {resendTimer}s
+                  </span>
+                ) : (
+                  <button 
+                    type="button" 
+                    onClick={handleSendOtp}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary-indigo)', fontWeight: '600', cursor: 'pointer', padding: '0', fontSize: '13px' }}
+                  >
+                    Resend Code
+                  </button>
+                )}
+              </div>
+            </form>
+          )
+        ) : (
+          /* Tab 2: Password Login Flow */
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                <Mail size={14} style={{ color: 'var(--accent-gold)' }} /> Email Address
+              </label>
+              <input 
+                type="email" 
+                placeholder="e.g. mom@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                <KeyRound size={14} style={{ color: 'var(--accent-gold)' }} /> Password
+              </label>
+              <input 
+                type="password" 
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+            {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center', lineHeight: '1.4' }}>{loginError}</p>}
+            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
+              {loginLoading ? 'Authenticating...' : 'Secure Log In'}
+            </button>
+          </form>
+        )}
       </div>
     );
   }
