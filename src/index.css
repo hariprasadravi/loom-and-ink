@@ -6,7 +6,7 @@
   --primary-terracotta: #ab47bc;  /* Deep terracotta / traditional red-brown */
   --accent-terracotta: #b23a22;   /* Traditional organic red madder dye */
   --accent-mustard: #d4af37;      /* Gold yellow / turmeric */
-  --bg-creme: #fcfaf6;            /* Warm organic handloom cotton cream */
+  --bg-creme: #f0e4d7;            /* Elegant light brown raw silk / Tussar linen shade */
   --bg-card: #ffffff;
   --text-dark: #2c2825;           /* Soft charcoal, avoiding pure black */
   --text-muted: #6e655f;          /* Earthy muted text */
@@ -30,6 +30,13 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-creme);
+  /* Elegant handloom raw silk fabric cross-hatch texture */
+  background-image: 
+    linear-gradient(90deg, rgba(44, 40, 37, 0.015) 50%, transparent 50%),
+    linear-gradient(rgba(44, 40, 37, 0.015) 50%, transparent 50%),
+    radial-gradient(circle at top left, rgba(212, 175, 55, 0.03), transparent 70%),
+    radial-gradient(circle at bottom right, rgba(178, 58, 34, 0.02), transparent 70%);
+  background-size: 3px 3px, 3px 3px, 100% 100%, 100% 100%;
   min-height: 100vh;
 }
 
@@ -72,7 +79,7 @@ button {
 .header-nav {
   position: sticky;
   top: 0;
-  background: rgba(252, 250, 246, 0.85);
+  background: rgba(240, 228, 215, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-light);
