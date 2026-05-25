@@ -2,45 +2,125 @@ import { useState, useEffect } from 'react';
 import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
-import { X, ExternalLink } from 'lucide-react';
-import { getImagePath } from './utils/helpers';
+import { X, Loader2 } from 'lucide-react';
+import { supabase } from './utils/supabaseClient';
 
 function App() {
-  const [sarees, setSarees] = useState(() => {
-    const saved = localStorage.getItem('ammas_sarees');
-    return saved ? JSON.parse(saved) : initialSarees;
-  });
-
+  const [sarees, setSarees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('showroom'); // 'showroom' or 'admin'
   const [selectedSaree, setSelectedSaree] = useState(null); // Saree for magnifier modal
 
-  // Save changes to localStorage
+  // Fetch sarees from Supabase on mount
   useEffect(() => {
-    localStorage.setItem('ammas_sarees', JSON.stringify(sarees));
-  }, [sarees]);
+    const fetchSarees = async () => {
+      try {
+        setLoading(true);
+        // Query the 'sarees' table ordered by creation time
+        const { data, error } = await supabase
+          .from('sarees')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-  const handleAddSaree = (newSaree) => {
-    setSarees((prev) => [newSaree, ...prev]);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setSarees(data);
+        } else {
+          // DATABASE SEEDER: If database is brand-new and empty, seed it with the 18 sarees!
+          console.log('Database is empty. Seeding initial 18 sarees...');
+          const { error: seedError } = await supabase
+            .from('sarees')
+            .insert(initialSarees);
+
+          if (seedError) throw seedError;
+          
+          setSarees(initialSarees);
+        }
+      } catch (err) {
+        console.error('Error fetching sarees from database:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSarees();
+  }, []);
+
+  const handleAddSaree = async (newSaree) => {
+    try {
+      const { error } = await supabase
+        .from('sarees')
+        .insert([newSaree]);
+
+      if (error) throw error;
+      setSarees((prev) => [newSaree, ...prev]);
+    } catch (err) {
+      alert('Error adding saree: ' + err.message);
+    }
   };
 
-  const handleToggleSold = (id) => {
-    setSarees((prev) => 
-      prev.map((saree) => 
-        saree.id === id ? { ...saree, sold: !saree.sold } : saree
-      )
-    );
+  const handleToggleSold = async (id) => {
+    const targetSaree = sarees.find((s) => s.id === id);
+    if (!targetSaree) return;
+    const nextSoldState = !targetSaree.sold;
+
+    try {
+      const { error } = await supabase
+        .from('sarees')
+        .update({ sold: nextSoldState })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSarees((prev) =>
+        prev.map((saree) =>
+          saree.id === id ? { ...saree, sold: nextSoldState } : saree
+        )
+      );
+    } catch (err) {
+      alert('Error updating status: ' + err.message);
+    }
   };
 
-  const handleUpdateSaree = (updatedSaree) => {
-    setSarees((prev) => 
-      prev.map((saree) => 
-        saree.id === updatedSaree.id ? updatedSaree : saree
-      )
-    );
+  const handleUpdateSaree = async (updatedSaree) => {
+    try {
+      const { error } = await supabase
+        .from('sarees')
+        .update({
+          code: updatedSaree.code,
+          title: updatedSaree.title,
+          type: updatedSaree.type,
+          description: updatedSaree.description,
+          image: updatedSaree.image,
+          sold: updatedSaree.sold
+        })
+        .eq('id', updatedSaree.id);
+
+      if (error) throw error;
+
+      setSarees((prev) =>
+        prev.map((saree) =>
+          saree.id === updatedSaree.id ? updatedSaree : saree
+        )
+      );
+    } catch (err) {
+      alert('Error updating saree details: ' + err.message);
+    }
   };
 
-  const handleDeleteSaree = (id) => {
-    setSarees((prev) => prev.filter((saree) => saree.id !== id));
+  const handleDeleteSaree = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('sarees')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setSarees((prev) => prev.filter((saree) => saree.id !== id));
+    } catch (err) {
+      alert('Error deleting saree: ' + err.message);
+    }
   };
 
   return (
@@ -72,7 +152,19 @@ function App() {
 
       {/* Main Content Area */}
       <main style={{ flexGrow: 1 }}>
-        {activeTab === 'showroom' ? (
+        {loading ? (
+          // Elegant loading spinner
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 0', gap: '16px' }}>
+            <Loader2 className="animate-spin" size={40} style={{ color: 'var(--primary-indigo)', animation: 'spin 1s linear infinite' }} />
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-muted)' }}>Opening the Loom & Lace Showroom...</p>
+            <style>{`
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        ) : activeTab === 'showroom' ? (
           <Showroom 
             sarees={sarees} 
             onViewSaree={setSelectedSaree} 
@@ -112,7 +204,7 @@ function App() {
               <X size={28} />
             </button>
             
-            <img src={getImagePath(selectedSaree.image)} alt={selectedSaree.title} className="modal-img" />
+            <img src={selectedSaree.image} alt={selectedSaree.title} className="modal-img" />
             <h3 className="modal-title">{selectedSaree.title}</h3>
             <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', marginTop: '4px', textTransform: 'uppercase', fontSize: '12px' }}>
               Code: {selectedSaree.code} • {selectedSaree.type === 'kalamkari' ? 'Kalamkari' : 'Silk Cotton'}
