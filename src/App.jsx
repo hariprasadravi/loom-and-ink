@@ -3,6 +3,7 @@ import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
 import { X, ExternalLink } from 'lucide-react';
+import { getImagePath } from './utils/helpers';
 
 function App() {
   const [sarees, setSarees] = useState(() => {
@@ -101,7 +102,7 @@ function App() {
               <X size={28} />
             </button>
             
-            <img src={selectedSaree.image} alt={selectedSaree.title} className="modal-img" />
+            <img src={getImagePath(selectedSaree.image)} alt={selectedSaree.title} className="modal-img" />
             <h3 className="modal-title">{selectedSaree.title}</h3>
             <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', marginTop: '4px', textTransform: 'uppercase', fontSize: '12px' }}>
               Code: {selectedSaree.code} • {selectedSaree.type === 'kalamkari' ? 'Kalamkari' : 'Silk Cotton'}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, LogOut, Upload, Image as ImageIcon } from 'lucide-react';
+import { getImagePath } from '../utils/helpers';
 
 export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteSaree }) {
   // Simulated Authentication State
@@ -239,7 +240,7 @@ export default function AdminPanel({ sarees, onAddSaree, onToggleSold, onDeleteS
             {sarees.length > 0 ? (
               sarees.map((saree) => (
                 <div className="admin-saree-row" key={saree.id}>
-                  <img src={saree.image} alt={saree.title} className="admin-saree-thumb" />
+                  <img src={getImagePath(saree.image)} alt={saree.title} className="admin-saree-thumb" />
                   <div className="admin-saree-meta">
                     <div className="admin-saree-name">{saree.title}</div>
                     <div className="admin-saree-type">

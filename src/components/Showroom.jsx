@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MessageSquare, Eye } from 'lucide-react';
+import { getImagePath } from '../utils/helpers';
 
 export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919876543210" }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,7 +116,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919876
               {/* Photo Wrapper */}
               <div className="saree-image-wrapper" onClick={() => onViewSaree(saree)}>
                 <img 
-                  src={saree.image} 
+                  src={getImagePath(saree.image)} 
                   alt={saree.title} 
                   className="saree-img"
                   loading="lazy"
