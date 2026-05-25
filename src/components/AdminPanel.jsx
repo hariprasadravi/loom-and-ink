@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
+import { supabase } from '../utils/supabaseClient';
 
 export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree }) {
-  // Simulated Authentication State
+  // Real Supabase Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminPin, setAdminPin] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -19,16 +22,53 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   
   // Track if we are editing an existing item
   const [editingSaree, setEditingSaree] = useState(null);
-  
-  const CORRECT_PIN = '1234'; // Simple secure pin for Mom to access the panel
 
-  const handleLogin = (e) => {
+  // Check auth session on load and listen to changes
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsAuthenticated(true);
+      }
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (adminPin === CORRECT_PIN) {
-      setIsAuthenticated(true);
+    if (!email || !password) {
+      setLoginError('Please enter both email and password.');
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
       setLoginError('');
-    } else {
-      setLoginError('Invalid Admin PIN. Please try again.');
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (err) {
+      setLoginError(err.message || 'Error signing in. Please check your credentials.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+    } catch (err) {
+      console.error('Error logging out:', err);
     }
   };
 
@@ -116,26 +156,37 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
   if (!isAuthenticated) {
     return (
-      <div className="login-container">
+      <div className="login-container" style={{ backgroundColor: 'var(--bg-card)' }}>
         <h2 style={{ textAlign: 'center', color: 'var(--primary-indigo)', marginBottom: '16px' }}>Admin Dashboard</h2>
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '24px' }}>
-          Enter PIN to manage showroom catalog, upload photos, or mark items sold.
+          Log in with your secure account to manage the Loom & Lace showroom catalog.
         </p>
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label className="form-label">Admin access PIN</label>
+            <label className="form-label">Email Address</label>
+            <input 
+              type="email" 
+              placeholder="e.g. mom@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Password</label>
             <input 
               type="password" 
-              placeholder="e.g. 1234"
-              value={adminPin}
-              onChange={(e) => setAdminPin(e.target.value)}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="form-input"
-              style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '8px' }}
+              required
             />
           </div>
           {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>{loginError}</p>}
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-            Access Panel
+          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
+            {loginLoading ? 'Authenticating...' : 'Secure Log In'}
           </button>
         </form>
       </div>
@@ -150,9 +201,9 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           <h1 style={{ color: 'var(--primary-indigo)', fontSize: '36px' }}>Catalog Manager</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Add new stock or toggle "Sold!" tags instantly.</p>
         </div>
-        <button className="btn-secondary" onClick={() => setIsAuthenticated(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button className="btn-secondary" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <LogOut size={16} />
-          Lock Panel
+          Log Out
         </button>
       </div>
 
