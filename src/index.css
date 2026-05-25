@@ -6,7 +6,7 @@
   --primary-terracotta: #ab47bc;  /* Deep terracotta / traditional red-brown */
   --accent-terracotta: #b23a22;   /* Traditional organic red madder dye */
   --accent-mustard: #d4af37;      /* Gold yellow / turmeric */
-  --bg-creme: #f0e4d7;            /* Elegant light brown raw silk / Tussar linen shade */
+  --bg-creme: #e6d6c3;            /* Rich warm raw silk / Tussar linen shade, optimized for desktop and mobile */
   --bg-card: #ffffff;
   --text-dark: #2c2825;           /* Soft charcoal, avoiding pure black */
   --text-muted: #6e655f;          /* Earthy muted text */
@@ -82,7 +82,7 @@ button {
 .header-nav {
   position: sticky;
   top: 0;
-  background: rgba(240, 228, 215, 0.85);
+  background: rgba(230, 214, 195, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-light);
