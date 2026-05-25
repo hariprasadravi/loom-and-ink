@@ -41,7 +41,7 @@ function App() {
       <header className="header-nav">
         <div className="container nav-container">
           <a href="#" className="logo-link" onClick={() => setActiveTab('showroom')}>
-            <span className="logo-brand">LOOM & LOVE</span>
+            <span className="logo-brand">LOOM & LACE</span>
             <span className="logo-sub">onlyKalamkari & Silk Cotton</span>
           </a>
           
@@ -82,14 +82,14 @@ function App() {
       {/* Premium Elegant Footer */}
       <footer className="footer">
         <div className="container">
-          <div className="footer-logo">LOOM & LOVE</div>
+          <div className="footer-logo">LOOM & LACE</div>
           <p style={{ marginBottom: '16px' }}>Curating authentic Indian handloom weaves and hand-painted art since 2020.</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', margin: '20px 0', fontSize: '14px' }}>
             <span style={{ color: 'var(--text-dark)', fontWeight: '500' }}>📍 Chennai, India (Weaving & Curation)</span>
             <span style={{ color: 'var(--text-dark)', fontWeight: '500' }}>🌐 Available Worldwide</span>
           </div>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '24px' }}>
-            © {new Date().getFullYear()} Loom & Love. All rights reserved. Designed with love.
+            © {new Date().getFullYear()} Loom & Lace. All rights reserved. Designed with love.
           </p>
         </div>
       </footer>
