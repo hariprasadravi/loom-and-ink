@@ -56,7 +56,7 @@ function App() {
               className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
               onClick={() => setActiveTab('admin')}
             >
-              Mom's Manager
+              Admin
             </button>
           </nav>
         </div>
