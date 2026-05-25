@@ -38,7 +38,7 @@ body {
   background-image: 
     linear-gradient(90deg, rgba(44, 40, 37, 0.015) 50%, transparent 50%),
     linear-gradient(rgba(44, 40, 37, 0.015) 50%, transparent 50%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23b23a22' stroke-opacity='0.12' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23b23a22' fill-opacity='0.15'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23b23a22' stroke-opacity='0.22' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23b23a22' fill-opacity='0.26'/%3E%3C/svg%3E");
   background-size: 3px 3px, 3px 3px, 160px 160px;
   min-height: 100vh;
 }
