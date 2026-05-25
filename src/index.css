@@ -16,7 +16,8 @@
   --shadow-hover: 0 20px 40px rgba(44, 40, 37, 0.12), 0 1px 8px rgba(44, 40, 37, 0.04);
   
   /* Typography */
-  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-serif: 'Prata', serif;                     /* Elegant, organic teardrop serif heading font */
+  --font-artistic: 'Italiana', serif;               /* Ultra-artistic, delicate calligraphy-style font */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   
   font-family: var(--font-sans);
@@ -100,10 +101,10 @@ button {
 }
 
 .logo-brand {
-  font-family: var(--font-serif);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-family: var(--font-artistic);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
   color: var(--primary-indigo);
   line-height: 1;
 }
