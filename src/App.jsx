@@ -167,7 +167,7 @@ function App() {
           <a href="#" className="logo-link" onClick={() => setActiveTab('showroom')}>
             <span className="logo-brand" style={{ letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               PATTUPOL 
-              <span style={{ fontFamily: "'Pavanam', sans-serif", fontSize: '18px', fontWeight: '500', color: 'var(--accent-terracotta)', textTransform: 'none', opacity: '0.9' }}>
+              <span style={{ fontFamily: "'Pavanam', sans-serif", fontSize: '18px', fontWeight: '500', color: 'var(--accent-gold)', textTransform: 'none', opacity: '1.0' }}>
                 பட்டுப்போல்
               </span>
             </span>

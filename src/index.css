@@ -4,16 +4,16 @@
   color-scheme: light; /* Strictly enforce light mode, preventing browsers from forcing navy-blue dark mode inversions */
   
   /* Artisanal Color System */
-  --primary-indigo: #1e3a5f;      /* Classic Indigo dye */
+  --primary-indigo: #990000;      /* USC Cardinal Red */
   --primary-terracotta: #ab47bc;  /* Deep terracotta / traditional red-brown */
-  --accent-terracotta: #b23a22;   /* Traditional organic red madder dye */
-  --accent-mustard: #d4af37;      /* Gold yellow / turmeric */
+  --accent-terracotta: #990000;   /* Cardinal Red accent */
+  --accent-mustard: #d6a218;      /* USC Gold accent */
   --bg-creme: #e6d6c3;            /* Rich warm raw silk / Tussar linen shade, optimized for desktop and mobile */
   --bg-card: #ffffff;
   --text-dark: #2c2825;           /* Soft charcoal, avoiding pure black */
   --text-muted: #6e655f;          /* Earthy muted text */
   --border-light: #eae5de;
-  --accent-gold: #c5a059;         /* High-end metallic gold accent */
+  --accent-gold: #d6a218;         /* USC Gold accent */
   --shadow-premium: 0 10px 30px rgba(44, 40, 37, 0.06), 0 1px 3px rgba(44, 40, 37, 0.02);
   --shadow-hover: 0 20px 40px rgba(44, 40, 37, 0.12), 0 1px 8px rgba(44, 40, 37, 0.04);
   
@@ -35,12 +35,12 @@ body {
   background-color: var(--bg-creme);
   /* 
     Layer 1 & 2: Elegant handloom Tussar raw silk fabric cross-hatch texture
-    Layer 3: Traditional hand-embroidered 'Booti' (paisley motif) threadwork outline pattern
+    Layer 3: Traditional hand-embroidered 'Booti' (paisley motif) threadwork outline pattern in Cardinal Red
   */
   background-image: 
     linear-gradient(90deg, rgba(44, 40, 37, 0.015) 50%, transparent 50%),
     linear-gradient(rgba(44, 40, 37, 0.015) 50%, transparent 50%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23b23a22' stroke-opacity='0.22' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23b23a22' fill-opacity='0.26'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23990000' stroke-opacity='0.16' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23990000' fill-opacity='0.2'/%3E%3C/svg%3E");
   background-size: 3px 3px, 3px 3px, 160px 160px;
   min-height: 100vh;
 }
