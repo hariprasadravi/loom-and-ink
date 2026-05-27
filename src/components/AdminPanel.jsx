@@ -74,6 +74,34 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     }
   };
 
+  const compressImage = (base64Str, maxWidth = 1000, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Maintain transparency format if it is a transparent PNG, otherwise compress to JPEG
+        const format = base64Str.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+        resolve(canvas.toDataURL(format, quality));
+      };
+      img.onerror = () => resolve(base64Str);
+    });
+  };
+
   const handleAIClearBackground = async (index, customUrl = null) => {
     const targetImg = imagePreviews[index];
     const sourceUrl = customUrl || targetImg?.url;
@@ -96,10 +124,13 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         reader.readAsDataURL(resultBlob);
       });
 
+      // Compress transparent PNG output to keep database payload lightweight
+      const compressedBgRemoved = await compressImage(base64Url);
+
       // Update image previews state with processed data URL
       setImagePreviews((prev) =>
         prev.map((img, i) =>
-          i === index ? { ...img, url: base64Url, processing: false } : img
+          i === index ? { ...img, url: compressedBgRemoved, processing: false } : img
         )
       );
     } catch (err) {
@@ -147,16 +178,18 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           reader.readAsDataURL(file);
         });
 
+        // Perform browser-side compression down to standard web size (~150KB)
+        const compressedBase64 = await compressImage(rawBase64);
         const targetIndex = baseLength + i;
 
         // Set the loaded image URL
         setImagePreviews((prev) =>
-          prev.map((img, idx) => (idx === targetIndex ? { ...img, url: rawBase64 } : img))
+          prev.map((img, idx) => (idx === targetIndex ? { ...img, url: compressedBase64 } : img))
         );
 
         // If auto-remove background is toggled, trigger the AI background removal immediately
         if (autoRemoveBg) {
-          handleAIClearBackground(targetIndex, rawBase64);
+          handleAIClearBackground(targetIndex, compressedBase64);
         }
       }
     }
