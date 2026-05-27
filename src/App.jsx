@@ -19,10 +19,10 @@ function App() {
       try {
         setLoading(true);
         setDbError(null);
-        // Query the 'sarees' table ordered by creation time
+        // Query only the lightweight summary columns to prevent heavy data payloads and SQL statement timeouts
         const { data, error } = await supabase
           .from('sarees')
-          .select('*')
+          .select('id, code, title, type, description, price, image, sold, created_at')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -126,6 +126,36 @@ function App() {
       setSarees((prev) => prev.filter((saree) => saree.id !== id));
     } catch (err) {
       alert('Error deleting saree: ' + err.message);
+    }
+  };
+
+  const handleViewSaree = async (saree) => {
+    setSelectedSaree(saree);
+    setActiveImgIndex(0);
+
+    // Fetch full secondary images asynchronously if not already cached/loaded
+    if (!saree.imagesLoaded) {
+      try {
+        const { data, error } = await supabase
+          .from('sarees')
+          .select('images')
+          .eq('id', saree.id)
+          .single();
+
+        if (!error && data && data.images) {
+          setSelectedSaree((prev) => {
+            if (prev && prev.id === saree.id) {
+              return { ...prev, images: data.images, imagesLoaded: true };
+            }
+            return prev;
+          });
+          setSarees((prev) =>
+            prev.map((s) => (s.id === saree.id ? { ...s, images: data.images, imagesLoaded: true } : s))
+          );
+        }
+      } catch (err) {
+        console.error('Error fetching secondary images:', err);
+      }
     }
   };
 
@@ -259,10 +289,7 @@ create policy "Allow admin full access"
         ) : activeTab === 'showroom' ? (
           <Showroom 
             sarees={sarees} 
-            onViewSaree={(saree) => {
-              setSelectedSaree(saree);
-              setActiveImgIndex(0);
-            }}
+            onViewSaree={handleViewSaree}
             whatsappNumber="919840709835"
           />
         ) : (

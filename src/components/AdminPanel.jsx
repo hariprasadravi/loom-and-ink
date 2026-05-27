@@ -182,7 +182,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     });
   };
 
-  const startEditing = (saree) => {
+  const startEditing = async (saree) => {
     setEditingSaree(saree);
     setTitle(saree.title);
     setCode(saree.code);
@@ -191,11 +191,20 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setPrice(saree.price || '5,000');
     setIsSold(saree.sold);
 
-    // Parse secondary images
-    let imgs = [];
+    // Load cover image immediately to prevent uploader UI jumping
+    let imgs = [{ url: saree.image, isCover: true }];
+    setImagePreviews(imgs);
+
+    // Fetch full secondary images asynchronously in the background
     try {
-      if (saree.images) {
-        const parsed = JSON.parse(saree.images);
+      const { data, error } = await supabase
+        .from('sarees')
+        .select('images')
+        .eq('id', saree.id)
+        .single();
+
+      if (!error && data && data.images) {
+        const parsed = JSON.parse(data.images);
         if (Array.isArray(parsed) && parsed.length > 0) {
           imgs = parsed.map(url => ({
             url,
@@ -204,17 +213,13 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           if (!imgs.some(img => img.isCover)) {
             imgs[0].isCover = true;
           }
+          setImagePreviews(imgs);
         }
       }
     } catch (err) {
-      console.error('Error parsing images JSON:', err);
+      console.error('Error fetching images for editing:', err);
     }
 
-    if (imgs.length === 0 && saree.image) {
-      imgs = [{ url: saree.image, isCover: true }];
-    }
-
-    setImagePreviews(imgs);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
