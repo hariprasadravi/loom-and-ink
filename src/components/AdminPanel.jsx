@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Star } from 'lucide-react';
+import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Star, Sparkles } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
+import { removeBackground } from '@imgly/background-removal';
 
 export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree }) {
   // Real Supabase Authentication State
@@ -17,8 +18,9 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [type, setType] = useState('kalamkari');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('5,000');
-  const [imagePreviews, setImagePreviews] = useState([]); // Array of { url: string, isCover: boolean }
+  const [imagePreviews, setImagePreviews] = useState([]); // Array of { url: string, isCover: boolean, processing?: boolean }
   const [isSold, setIsSold] = useState(false);
+  const [autoRemoveBg, setAutoRemoveBg] = useState(false); // AI background removal toggle
   
   // Track if we are editing an existing item
   const [editingSaree, setEditingSaree] = useState(null);
@@ -72,20 +74,91 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleAIClearBackground = async (index, customUrl = null) => {
+    const targetImg = imagePreviews[index];
+    const sourceUrl = customUrl || targetImg?.url;
+    if (!sourceUrl) return;
+
+    // Set processing state for this image preview card
+    setImagePreviews((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, processing: true } : img))
+    );
+
+    try {
+      // Trigger browser-based WebAssembly background removal
+      const resultBlob = await removeBackground(sourceUrl);
+      
+      // Convert result PNG blob to base64 dataURL
+      const base64Url = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(resultBlob);
+      });
+
+      // Update image previews state with processed data URL
+      setImagePreviews((prev) =>
+        prev.map((img, i) =>
+          i === index ? { ...img, url: base64Url, processing: false } : img
+        )
+      );
+    } catch (err) {
+      console.error('Error running AI background removal:', err);
+      alert('AI background removal encountered an issue. The original photo will be used instead.');
+      setImagePreviews((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, processing: false } : img))
+      );
+    }
+  };
+
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImagePreviews((prev) => {
-            // First image uploaded becomes cover by default
-            const isFirst = prev.length === 0;
-            return [...prev, { url: reader.result, isCover: isFirst }];
-          });
-        };
-        reader.readAsDataURL(file);
+      // Create new slots first
+      const newItems = files.map((file, idx) => ({
+        url: '', // Will be loaded dynamically
+        isCover: false,
+        processing: false,
+        name: file.name,
+        fileObj: file
+      }));
+
+      // Add placeholder slots to imagePreviews instantly so the user has immediate feedback
+      let baseLength = 0;
+      setImagePreviews((prev) => {
+        baseLength = prev.length;
+        const updated = [...prev];
+        newItems.forEach((item, index) => {
+          if (updated.length === 0 && index === 0) {
+            item.isCover = true;
+          }
+          updated.push(item);
+        });
+        return updated;
       });
+
+      // Process each file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // Read file as base64 first
+        const rawBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+
+        const targetIndex = baseLength + i;
+
+        // Set the loaded image URL
+        setImagePreviews((prev) =>
+          prev.map((img, idx) => (idx === targetIndex ? { ...img, url: rawBase64 } : img))
+        );
+
+        // If auto-remove background is toggled, trigger the AI background removal immediately
+        if (autoRemoveBg) {
+          handleAIClearBackground(targetIndex, rawBase64);
+        }
+      }
     }
   };
 
@@ -367,31 +440,74 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                 />
               </div>
 
+              {/* AI Auto-Remove Background Toggle Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', padding: '6px 12px', backgroundColor: 'rgba(230, 214, 195, 0.25)', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                <input 
+                  type="checkbox" 
+                  id="auto-bg-toggle" 
+                  checked={autoRemoveBg} 
+                  onChange={(e) => setAutoRemoveBg(e.target.checked)}
+                  style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-terracotta)', margin: 0 }}
+                />
+                <label htmlFor="auto-bg-toggle" style={{ fontSize: '12px', color: 'var(--text-dark)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', userSelect: 'none' }}>
+                  <Sparkles size={13} style={{ color: 'var(--accent-gold)' }} />
+                  Auto-clear backgrounds on upload (AI)
+                </label>
+              </div>
+
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '12px', marginTop: '16px' }}>
                   {imagePreviews.map((img, index) => (
                     <div key={index} style={{ position: 'relative', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <img src={img.url} alt={`upload-${index}`} style={{ width: '100%', height: '60px', objectFit: 'cover', borderRadius: '6px' }} />
+                      {img.url ? (
+                        <img src={img.url} alt={`upload-${index}`} style={{ width: '100%', height: '60px', objectFit: 'cover', borderRadius: '6px' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9', borderRadius: '6px' }}>
+                          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '12px', height: '12px', animation: 'spin 1s linear infinite' }}></div>
+                        </div>
+                      )}
                       
-                      {/* Set Cover Star Button */}
-                      <button
-                        type="button"
-                        onClick={() => setAsCover(index)}
-                        style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title={img.isCover ? "Main Thumbnail Cover" : "Set as Cover"}
-                      >
-                        <Star size={14} fill={img.isCover ? "#c5a059" : "none"} stroke={img.isCover ? "#c5a059" : "var(--text-muted)"} />
-                      </button>
+                      {/* Interactive Buttons Row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', justifyContent: 'space-around', borderTop: '1px solid var(--border-light)', paddingTop: '4px', marginTop: '2px' }}>
+                        {/* Set Cover Star Button */}
+                        <button
+                          type="button"
+                          onClick={() => setAsCover(index)}
+                          style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title={img.isCover ? "Main Thumbnail Cover" : "Set as Cover"}
+                        >
+                          <Star size={13} fill={img.isCover ? "#c5a059" : "none"} stroke={img.isCover ? "#c5a059" : "var(--text-muted)"} />
+                        </button>
+
+                        {/* AI Clear Background Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleAIClearBackground(index)}
+                          disabled={img.processing || !img.url}
+                          style={{ background: 'none', border: 'none', padding: '2px', cursor: (img.processing || !img.url) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Remove background (legs, sofa) using AI"
+                        >
+                          <Sparkles size={13} style={{ color: 'var(--accent-terracotta)' }} />
+                        </button>
+                      </div>
 
                       {/* Remove Image Cross Button */}
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#c53030', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#c53030', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold', zIndex: 11 }}
                         title="Delete Image"
                       >
                         ×
                       </button>
+
+                      {/* AI Loading/Processing Mask overlay */}
+                      {img.processing && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, padding: '4px' }}>
+                          <div style={{ border: '2px solid #f3f3f3', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '16px', height: '16px', animation: 'spin 1s linear infinite', marginBottom: '4px' }}></div>
+                          <span style={{ fontSize: '8px', color: 'var(--accent-terracotta)', fontWeight: '700', textAlign: 'center', lineHeight: '1.1' }}>AI clearing...</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

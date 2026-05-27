@@ -822,3 +822,10 @@ button {
     margin: 20px 12px 60px;
   }
 }
+
+/* Spinner Animation for AI Background Removal */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
