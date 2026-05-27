@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 
 function App() {
   const [sarees, setSarees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('showroom'); // 'showroom' or 'admin'
-  const [selectedSaree, setSelectedSaree] = useState(null); // Saree for magnifier modal
+  const [selectedSaree, setSelectedSaree] = useState(null); // Selected item for zoom lightbox modal
+  const [activeImgIndex, setActiveImgIndex] = useState(0); // Active image index in the lightbox carousel
   const [dbError, setDbError] = useState(null); // Database error tracking
 
   // Fetch sarees from Supabase on mount
@@ -95,7 +96,9 @@ function App() {
           title: updatedSaree.title,
           type: updatedSaree.type,
           description: updatedSaree.description,
+          price: updatedSaree.price,
           image: updatedSaree.image,
+          images: updatedSaree.images,
           sold: updatedSaree.sold
         })
         .eq('id', updatedSaree.id);
@@ -108,7 +111,7 @@ function App() {
         )
       );
     } catch (err) {
-      alert('Error updating saree details: ' + err.message);
+      alert('Error updating item details: ' + err.message);
     }
   };
 
@@ -213,6 +216,7 @@ create table if not exists public.sarees (
   type text not null,
   description text not null,
   price text,
+  images text,
   image text not null,
   sold boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -255,7 +259,10 @@ create policy "Allow admin full access"
         ) : activeTab === 'showroom' ? (
           <Showroom 
             sarees={sarees} 
-            onViewSaree={setSelectedSaree} 
+            onViewSaree={(saree) => {
+              setSelectedSaree(saree);
+              setActiveImgIndex(0);
+            }}
             whatsappNumber="919840709835"
           />
         ) : (
@@ -290,22 +297,102 @@ create policy "Allow admin full access"
       </footer>
 
       {/* Image Magnifier / Zoom View Modal */}
-      {selectedSaree && (
-        <div className="modal-overlay" onClick={() => setSelectedSaree(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedSaree(null)}>
-              <X size={28} />
-            </button>
-            
-            <img src={selectedSaree.image} alt={selectedSaree.title} className="modal-img" />
-            <h3 className="modal-title">{selectedSaree.title}</h3>
-            <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', marginTop: '4px', textTransform: 'uppercase', fontSize: '12px' }}>
-              Code: {selectedSaree.code} • {selectedSaree.type === 'kalamkari' ? 'Kalamkari' : 'Silk Cotton'}
-            </p>
-            <p className="modal-desc">{selectedSaree.description}</p>
+      {selectedSaree && (() => {
+        let imgs = [];
+        try {
+          if (selectedSaree.images) {
+            imgs = JSON.parse(selectedSaree.images);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        if (!Array.isArray(imgs) || imgs.length === 0) {
+          imgs = [selectedSaree.image];
+        }
+
+        const handlePrev = () => {
+          setActiveImgIndex((prev) => (prev - 1 + imgs.length) % imgs.length);
+        };
+
+        const handleNext = () => {
+          setActiveImgIndex((prev) => (prev + 1) % imgs.length);
+        };
+
+        return (
+          <div className="modal-overlay" onClick={() => setSelectedSaree(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+              <button className="modal-close" onClick={() => setSelectedSaree(null)}>
+                <X size={28} />
+              </button>
+              
+              {/* Sliding Image Carousel */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img 
+                  src={imgs[activeImgIndex]} 
+                  alt={selectedSaree.title} 
+                  className="modal-img" 
+                  style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '8px' }} 
+                />
+                
+                {/* Navigation Arrows */}
+                {imgs.length > 1 && (
+                  <>
+                    <button 
+                      onClick={handlePrev}
+                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', color: 'var(--text-dark)' }}
+                      title="Previous Image"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button 
+                      onClick={handleNext}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', color: 'var(--text-dark)' }}
+                      title="Next Image"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Dot Indicators */}
+              {imgs.length > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
+                  {imgs.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImgIndex(idx)}
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: idx === activeImgIndex ? 'var(--accent-terracotta)' : '#cbd5e0',
+                        border: 'none',
+                        padding: '0',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.3s ease'
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <h3 className="modal-title" style={{ marginTop: '16px', marginBottom: '8px' }}>{selectedSaree.title}</h3>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
+                <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', margin: '0' }}>
+                  Code: {selectedSaree.code} • {selectedSaree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </p>
+                <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
+                  ₹{selectedSaree.price || '5,000'}
+                </span>
+              </div>
+              
+              <p className="modal-desc" style={{ marginTop: '0' }}>{selectedSaree.description}</p>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Clock } from 'lucide-react';
+import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Star } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
@@ -10,13 +10,14 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
   // Form Fields
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
   const [type, setType] = useState('kalamkari');
   const [description, setDescription] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [price, setPrice] = useState('5,000');
+  const [imagePreviews, setImagePreviews] = useState([]); // Array of { url: string, isCover: boolean }
   const [isSold, setIsSold] = useState(false);
   
   // Track if we are editing an existing item
@@ -42,8 +43,6 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
     return () => subscription.unsubscribe();
   }, []);
-
-
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -74,16 +73,40 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      // Convert to Base64 to store in LocalStorage for testing
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews((prev) => {
+            // First image uploaded becomes cover by default
+            const isFirst = prev.length === 0;
+            return [...prev, { url: reader.result, isCover: isFirst }];
+          });
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const setAsCover = (index) => {
+    setImagePreviews((prev) =>
+      prev.map((img, i) => ({
+        ...img,
+        isCover: i === index
+      }))
+    );
+  };
+
+  const removeImage = (index) => {
+    setImagePreviews((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      // If we deleted the cover, make the first remaining image the cover
+      if (prev[index]?.isCover && updated.length > 0) {
+        updated[0].isCover = true;
+      }
+      return updated;
+    });
   };
 
   const startEditing = (saree) => {
@@ -92,9 +115,33 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setCode(saree.code);
     setType(saree.type);
     setDescription(saree.description);
-    setImagePreview(saree.image);
+    setPrice(saree.price || '5,000');
     setIsSold(saree.sold);
-    // Scroll form into view for mobile users
+
+    // Parse secondary images
+    let imgs = [];
+    try {
+      if (saree.images) {
+        const parsed = JSON.parse(saree.images);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          imgs = parsed.map(url => ({
+            url,
+            isCover: url === saree.image
+          }));
+          if (!imgs.some(img => img.isCover)) {
+            imgs[0].isCover = true;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error parsing images JSON:', err);
+    }
+
+    if (imgs.length === 0 && saree.image) {
+      imgs = [{ url: saree.image, isCover: true }];
+    }
+
+    setImagePreviews(imgs);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -104,17 +151,29 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setCode('');
     setType('kalamkari');
     setDescription('');
-    setImageFile(null);
-    setImagePreview('');
+    setPrice('5,000');
+    setImagePreviews([]);
     setIsSold(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!title || !code || !description || !imagePreview) {
-      alert('Please fill out all fields and upload a photo.');
+    if (!title || !code || !description) {
+      alert('Please fill out all text fields.');
       return;
     }
+
+    if (imagePreviews.length === 0) {
+      alert('Please upload at least one photo.');
+      return;
+    }
+
+    let coverImg = imagePreviews.find(img => img.isCover)?.url;
+    if (!coverImg && imagePreviews.length > 0) {
+      coverImg = imagePreviews[0].url;
+    }
+
+    const serializedImages = JSON.stringify(imagePreviews.map(img => img.url));
 
     if (editingSaree) {
       const updatedSaree = {
@@ -123,13 +182,15 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         title,
         type,
         description,
-        image: imagePreview,
+        price,
+        image: coverImg,
+        images: serializedImages,
         sold: isSold
       };
 
       onUpdateSaree(updatedSaree);
       setEditingSaree(null);
-      alert('Saree updated successfully!');
+      alert('Item updated successfully!');
     } else {
       const newSaree = {
         id: `saree-${Date.now()}`,
@@ -137,12 +198,14 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         title,
         type,
         description,
-        image: imagePreview,
+        price,
+        image: coverImg,
+        images: serializedImages,
         sold: isSold
       };
 
       onAddSaree(newSaree);
-      alert('Saree added successfully!');
+      alert('Item added successfully!');
     }
     
     // Reset Form
@@ -150,8 +213,8 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setCode('');
     setType('kalamkari');
     setDescription('');
-    setImageFile(null);
-    setImagePreview('');
+    setPrice('5,000');
+    setImagePreviews([]);
     setIsSold(false);
   };
 
@@ -245,7 +308,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
             </div>
 
             <div className="form-group">
-              <label className="form-label">Weave Category</label>
+              <label className="form-label">Item Category</label>
               <select 
                 value={type} 
                 onChange={(e) => setType(e.target.value)}
@@ -253,7 +316,24 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
               >
                 <option value="kalamkari">Kalamkari (Hand-Painted)</option>
                 <option value="silk-cotton">Silk Cotton (Handloom)</option>
+                <option value="soft-silk">Soft Silks</option>
+                <option value="semi-silk-cotton">Semi Silk Cottons</option>
+                <option value="summer-cotton">Summer Cottons</option>
+                <option value="traditional-cotton">Traditional Cottons (Chettinad/Narayanapet/Kanchi)</option>
+                <option value="nighties">Nighties</option>
               </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Price (₹)</label>
+              <input 
+                type="text" 
+                placeholder="e.g. 5,000"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="form-input"
+                required
+              />
             </div>
 
             <div className="form-group">
@@ -269,46 +349,62 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
             </div>
 
             <div className="form-group">
-              <label className="form-label">Upload Photo</label>
+              <label className="form-label">Upload Photos (Multiple Supported)</label>
               <div 
                 className="file-upload-zone"
                 onClick={() => document.getElementById('saree-file-input').click()}
               >
                 <Upload className="upload-icon" size={24} style={{ margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-dark)' }}>Tap to snap a photo or choose from library</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>JPEG or PNG formats supported</p>
+                <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-dark)' }}>Tap to snap photos or choose from gallery</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Select one or multiple images at once</p>
                 <input 
                   id="saree-file-input"
                   type="file" 
                   accept="image/*"
+                  multiple
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                 />
               </div>
 
-              {imagePreview && (
-                <div className="file-preview-grid">
-                  <div className="file-preview-item">
-                    <img src={imagePreview} className="file-preview-img" alt="Saree preview" />
-                    <button 
-                      type="button" 
-                      className="btn-remove-preview"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImagePreview('');
-                        setImageFile(null);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
+              {imagePreviews.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '12px', marginTop: '16px' }}>
+                  {imagePreviews.map((img, index) => (
+                    <div key={index} style={{ position: 'relative', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <img src={img.url} alt={`upload-${index}`} style={{ width: '100%', height: '60px', objectFit: 'cover', borderRadius: '6px' }} />
+                      
+                      {/* Set Cover Star Button */}
+                      <button
+                        type="button"
+                        onClick={() => setAsCover(index)}
+                        style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title={img.isCover ? "Main Thumbnail Cover" : "Set as Cover"}
+                      >
+                        <Star size={14} fill={img.isCover ? "#c5a059" : "none"} stroke={img.isCover ? "#c5a059" : "var(--text-muted)"} />
+                      </button>
+
+                      {/* Remove Image Cross Button */}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#c53030', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                        title="Delete Image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="form-label" style={{ margin: '0' }}>Mark as Already Sold?</span>
-              <div className="switch-container">
+              <div 
+                className="switch-container"
+                style={{ position: 'relative' }}
+                title="Toggling this instantly sets a 'Sold!' stamp on the showroom page and disables enquiries."
+              >
                 <input 
                   type="checkbox" 
                   id="sold-switch"
@@ -317,7 +413,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                   className="switch-input-hidden"
                 />
                 <label htmlFor="sold-switch" className="switch-slider"></label>
-                <span className="switch-label" style={{ color: isSold ? 'var(--accent-terracotta)' : 'var(--text-muted)', fontWeight: '600' }}>
+                <span className="switch-label" style={{ color: isSold ? 'var(--accent-terracotta)' : 'var(--text-muted)', fontWeight: '600', marginLeft: '8px' }}>
                   {isSold ? 'Sold' : 'Available'}
                 </span>
               </div>
@@ -326,7 +422,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
                <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                  {editingSaree ? <Check size={18} /> : <Plus size={18} />}
-                 {editingSaree ? 'Save Saree Details' : 'Publish Saree to Showroom'}
+                 {editingSaree ? 'Save Item Details' : 'Publish Item to Showroom'}
                </button>
                {editingSaree && (
                  <button type="button" className="btn-secondary" onClick={cancelEditing} style={{ width: '100%', justifyContent: 'center' }}>
@@ -349,12 +445,15 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                   <div className="admin-saree-meta">
                     <div className="admin-saree-name">{saree.title}</div>
                     <div className="admin-saree-type">
-                      Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type === 'kalamkari' ? 'Kalamkari' : 'Silk Cotton'}
+                      Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </div>
                   </div>
 
-                  {/* Sold Switch */}
-                  <div className="switch-container">
+                  {/* Sold Switch with Tooltip */}
+                  <div 
+                    className="switch-container"
+                    title="Toggle to instantly mark this item as Sold or Available."
+                  >
                     <input 
                       type="checkbox" 
                       id={`sold-switch-${saree.id}`}
@@ -369,7 +468,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                   <button 
                     onClick={() => startEditing(saree)}
                     style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
-                    title="Edit Saree Details"
+                    title="Edit Item Details"
                   >
                     <Edit2 size={16} />
                   </button>
@@ -382,14 +481,14 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                       }
                     }}
                     style={{ color: '#c53030', padding: '6px' }}
-                    title="Delete Saree"
+                    title="Delete Item"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
               ))
             ) : (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No sarees in showroom.</p>
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No items in showroom.</p>
             )}
           </div>
         </div>

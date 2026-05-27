@@ -28,7 +28,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
   });
 
   const getWhatsAppLink = (saree) => {
-    const text = `Hi, I am interested in Saree Code: ${saree.code} - ${saree.title}. Is this saree available? I saw it on your showroom website.`;
+    const text = `Hi, I am interested in Item Code: ${saree.code} - ${saree.title}. Is this available? I saw it on your showroom website.`;
     return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
   };
 
@@ -46,12 +46,12 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
       <div className="showroom-controls">
         <div className="filter-row">
           {/* Categories */}
-          <div className="filter-group">
+          <div className="filter-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <button 
               className={`filter-chip ${activeType === 'all' ? 'active' : ''}`}
               onClick={() => setActiveType('all')}
             >
-              All Weaves
+              All Items
             </button>
             <button 
               className={`filter-chip ${activeType === 'kalamkari' ? 'active' : ''}`}
@@ -64,6 +64,36 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
               onClick={() => setActiveType('silk-cotton')}
             >
               Silk Cotton
+            </button>
+            <button 
+              className={`filter-chip ${activeType === 'soft-silk' ? 'active' : ''}`}
+              onClick={() => setActiveType('soft-silk')}
+            >
+              Soft Silks
+            </button>
+            <button 
+              className={`filter-chip ${activeType === 'semi-silk-cotton' ? 'active' : ''}`}
+              onClick={() => setActiveType('semi-silk-cotton')}
+            >
+              Semi Silk Cottons
+            </button>
+            <button 
+              className={`filter-chip ${activeType === 'summer-cotton' ? 'active' : ''}`}
+              onClick={() => setActiveType('summer-cotton')}
+            >
+              Summer Cottons
+            </button>
+            <button 
+              className={`filter-chip ${activeType === 'traditional-cotton' ? 'active' : ''}`}
+              onClick={() => setActiveType('traditional-cotton')}
+            >
+              Traditional Cottons
+            </button>
+            <button 
+              className={`filter-chip ${activeType === 'nighties' ? 'active' : ''}`}
+              onClick={() => setActiveType('nighties')}
+            >
+              Nighties
             </button>
           </div>
 
@@ -94,7 +124,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
             <Search className="search-icon" size={18} />
             <input 
               type="text" 
-              placeholder="Search sarees..." 
+              placeholder="Search items..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -110,7 +140,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
             <article className="saree-card" key={saree.id}>
               {/* Saree Badge */}
               <span className="saree-type-badge">
-                {saree.type === 'kalamkari' ? 'Kalamkari' : 'Silk Cotton'}
+                {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
               </span>
 
               {/* Photo Wrapper */}
@@ -136,12 +166,17 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                   <h3 className="saree-card-title">{saree.title}</h3>
                   <span className="saree-code">{saree.code}</span>
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0 12px' }}>
+                  <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
+                    ₹{saree.price || '5,000'}
+                  </span>
+                </div>
                 <p className="saree-desc">{saree.description}</p>
                 
                 <div className="saree-actions">
                   {saree.sold ? (
                     <button className="btn-whatsapp sold" disabled>
-                      Saree Sold Out
+                      Item Sold Out
                     </button>
                   ) : (
                     <a 
@@ -150,8 +185,18 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                       rel="noopener noreferrer"
                       className="btn-whatsapp"
                     >
-                      <MessageSquare size={16} />
-                      Inquire on WhatsApp
+                      {/* Native Premium SVG WhatsApp Logo */}
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="16" 
+                        height="16" 
+                        viewBox="0 0 24 24" 
+                        fill="currentColor" 
+                        style={{ marginRight: '6px' }}
+                      >
+                        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.335 4.963L2 22l5.233-1.372a9.948 9.948 0 0 0 4.777 1.218h.004c5.505 0 9.988-4.478 9.989-9.984C22.007 6.478 17.52 2 12.012 2zm6.273 14.155c-.274.773-1.343 1.393-1.854 1.488-.475.088-.86.37-2.915-.461-2.483-1.004-4.047-3.525-4.17-3.69-.124-.165-.98-1.306-.98-2.494 0-1.188.62-1.77.842-2.006.223-.236.483-.294.644-.294.16 0 .32.001.46.007.15.006.354-.058.555.428.204.494.697 1.696.757 1.82.06.124.1.268.017.433-.082.164-.124.268-.247.412-.124.144-.26.32-.37.429-.124.124-.253.259-.109.508.144.247.64 1.056 1.371 1.706.942.84 1.737 1.1 1.986 1.224.248.124.392.103.537-.062.144-.165.62-.722.785-.969.165-.247.33-.206.557-.123.227.082 1.443.68 1.691.804.247.124.412.186.474.293.062.107.062.619-.212 1.392z" />
+                      </svg>
+                      Enquire on WhatsApp
                     </a>
                   )}
                 </div>
@@ -161,7 +206,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
         </div>
       ) : (
         <div style={{ padding: '80px 0', color: 'var(--text-muted)' }}>
-          <p style={{ fontSize: '18px', fontFamily: 'var(--font-serif)' }}>No sarees found matching your criteria.</p>
+          <p style={{ fontSize: '18px', fontFamily: 'var(--font-serif)' }}>No items found matching your criteria.</p>
           <p style={{ fontSize: '14px', marginTop: '8px' }}>Try resetting your filters or search terms.</p>
         </div>
       )}
