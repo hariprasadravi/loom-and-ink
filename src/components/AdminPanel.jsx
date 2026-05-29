@@ -906,7 +906,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         <div className="admin-card" style={{ margin: '0', maxWidth: '100%' }}>
           <h2 style={{ fontSize: '24px', marginBottom: '24px', color: 'var(--primary-indigo)' }}>Live Catalog ({sarees.length})</h2>
           
-          <div style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
+          <div className="admin-catalog-list" style={{ maxHeight: '480px', overflowY: 'auto', paddingRight: '6px' }}>
             {sarees.length > 0 ? (
               sarees.map((saree) => (
                 <div className="admin-saree-row" key={saree.id}>

@@ -829,3 +829,22 @@ button {
   100% { transform: rotate(360deg); }
 }
 
+/* Custom premium scrollbar for the live catalog list */
+.admin-catalog-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-catalog-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 3px;
+}
+
+.admin-catalog-list::-webkit-scrollbar-thumb {
+  background: var(--accent-terracotta); /* Cardinal brick red */
+  border-radius: 3px;
+}
+
+.admin-catalog-list::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-indigo); /* Indigo navy */
+}
+
