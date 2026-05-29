@@ -594,52 +594,13 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           <div style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
             {sarees.length > 0 ? (
               sarees.map((saree) => (
-                <div className="admin-saree-row" key={saree.id}>
-                  <img src={getImagePath(saree.image)} alt={saree.title} className="admin-saree-thumb" />
-                  <div className="admin-saree-meta">
-                    <div className="admin-saree-name">{saree.title}</div>
-                    <div className="admin-saree-type">
-                      Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    </div>
-                  </div>
-
-                  {/* Sold Switch with Tooltip */}
-                  <div 
-                    className="switch-container"
-                    title="Toggle to instantly mark this item as Sold or Available."
-                  >
-                    <input 
-                      type="checkbox" 
-                      id={`sold-switch-${saree.id}`}
-                      checked={saree.sold}
-                      onChange={() => onToggleSold(saree.id)}
-                      className="switch-input-hidden"
-                    />
-                    <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
-                  </div>
-
-                  {/* Edit button */}
-                  <button 
-                    onClick={() => startEditing(saree)}
-                    style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
-                    title="Edit Item Details"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-
-                  {/* Delete button */}
-                  <button 
-                    onClick={() => {
-                      if (confirm(`Are you sure you want to delete ${saree.title}?`)) {
-                        onDeleteSaree(saree.id);
-                      }
-                    }}
-                    style={{ color: '#c53030', padding: '6px' }}
-                    title="Delete Item"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                <AdminSareeRow 
+                  key={saree.id} 
+                  saree={saree} 
+                  onStartEditing={startEditing} 
+                  onToggleSold={onToggleSold} 
+                  onDeleteSaree={onDeleteSaree} 
+                />
               ))
             ) : (
               <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No items in showroom.</p>
@@ -648,6 +609,105 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         </div>
 
       </div>
+    </div>
+  );
+}
+
+function AdminSareeRow({ saree, onStartEditing, onToggleSold, onDeleteSaree }) {
+  const [coverImage, setCoverImage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCover = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sarees')
+          .select('image')
+          .eq('id', saree.id)
+          .single();
+
+        if (isMounted && !error && data) {
+          setCoverImage(data.image);
+        }
+      } catch (err) {
+        console.error('Error fetching admin row cover image:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchCover();
+    return () => {
+      isMounted = false;
+    };
+  }, [saree.id]);
+
+  const handleEdit = () => {
+    onStartEditing({ ...saree, image: coverImage });
+  };
+
+  const handleToggle = () => {
+    onToggleSold(saree.id);
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Are you sure you want to delete ${saree.title || 'this item'}?`)) {
+      onDeleteSaree(saree.id);
+    }
+  };
+
+  const currentImage = coverImage || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 4"%3E%3C/svg%3E';
+
+  return (
+    <div className="admin-saree-row">
+      {loading ? (
+        <div className="admin-saree-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '10px', height: '10px', animation: 'spin 1s linear infinite' }}></div>
+        </div>
+      ) : (
+        <img src={getImagePath(currentImage)} alt={saree.title} className="admin-saree-thumb" />
+      )}
+      <div className="admin-saree-meta">
+        <div className="admin-saree-name">{saree.title}</div>
+        <div className="admin-saree-type">
+          Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+        </div>
+      </div>
+
+      {/* Sold Switch with Tooltip */}
+      <div 
+        className="switch-container"
+        title="Toggle to instantly mark this item as Sold or Available."
+        style={{ marginRight: '8px' }}
+      >
+        <input 
+          type="checkbox" 
+          id={`sold-switch-${saree.id}`}
+          checked={saree.sold}
+          onChange={handleToggle}
+          className="switch-input-hidden"
+        />
+        <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
+      </div>
+
+      {/* Edit button */}
+      <button 
+        onClick={handleEdit}
+        style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
+        title="Edit Item Details"
+      >
+        <Edit2 size={16} />
+      </button>
+
+      {/* Delete button */}
+      <button 
+        onClick={handleDelete}
+        style={{ color: '#c53030', padding: '6px' }}
+        title="Delete Item"
+      >
+        <Trash2 size={16} />
+      </button>
     </div>
   );
 }

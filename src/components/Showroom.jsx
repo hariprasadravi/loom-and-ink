@@ -1,6 +1,117 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, MessageSquare, Eye } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
+import { supabase } from '../utils/supabaseClient';
+
+function SareeCard({ saree, onViewSaree, getWhatsAppLink }) {
+  const [coverImage, setCoverImage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCover = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sarees')
+          .select('image')
+          .eq('id', saree.id)
+          .single();
+
+        if (isMounted && !error && data) {
+          setCoverImage(data.image);
+        }
+      } catch (err) {
+        console.error('Error fetching cover image for card:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    
+    fetchCover();
+    return () => {
+      isMounted = false;
+    };
+  }, [saree.id]);
+
+  const handleView = () => {
+    onViewSaree({ ...saree, image: coverImage });
+  };
+
+  const currentImage = coverImage || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 4"%3E%3C/svg%3E';
+
+  return (
+    <article className="saree-card">
+      {/* Saree Badge */}
+      <span className="saree-type-badge">
+        {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+      </span>
+
+      {/* Photo Wrapper */}
+      <div className="saree-image-wrapper" onClick={handleView}>
+        {loading ? (
+          <div style={{ width: '100%', height: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(230, 214, 195, 0.15)', borderRadius: '8px' }}>
+            <div style={{ border: '2px solid #eae5de', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '24px', height: '24px', animation: 'spin 1s linear infinite' }}></div>
+          </div>
+        ) : (
+          <img 
+            src={getImagePath(currentImage)} 
+            alt={saree.title} 
+            className="saree-img"
+            loading="lazy"
+          />
+        )}
+        
+        {/* Sold Stamp */}
+        {saree.sold && (
+          <div className="sold-overlay">
+            <div className="sold-stamp">Sold!</div>
+          </div>
+        )}
+      </div>
+
+      {/* Saree Info */}
+      <div className="saree-info">
+        <div className="saree-title-row">
+          <h3 className="saree-card-title">{saree.title}</h3>
+          <span className="saree-code">{saree.code}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0 12px' }}>
+          <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
+            ₹{saree.price || '5,000'}
+          </span>
+        </div>
+        <p className="saree-desc">{saree.description}</p>
+        
+        <div className="saree-actions">
+          {saree.sold ? (
+            <button className="btn-whatsapp sold" disabled>
+              Item Sold Out
+            </button>
+          ) : (
+            <a 
+              href={getWhatsAppLink({ ...saree, image: coverImage })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-whatsapp"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="currentColor" 
+                style={{ marginRight: '6px' }}
+              >
+                <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.335 4.963L2 22l5.233-1.372a9.948 9.948 0 0 0 4.777 1.218h.004c5.505 0 9.988-4.478 9.989-9.984C22.007 6.478 17.52 2 12.012 2zm6.273 14.155c-.274.773-1.343 1.393-1.854 1.488-.475.088-.86.37-2.915-.461-2.483-1.004-4.047-3.525-4.17-3.69-.124-.165-.98-1.306-.98-2.494 0-1.188.62-1.77.842-2.006.223-.236.483-.294.644-.294.16 0 .32.001.46.007.15.006.354-.058.555.428.204.494.697 1.696.757 1.82.06.124.1.268.017.433-.082.164-.124.268-.247.412-.124.144-.26.32-.37.429-.124.124-.253.259-.109.508.144.247.64 1.056 1.371 1.706.942.84 1.737 1.1 1.986 1.224.248.124.392.103.537-.062.144-.165.62-.722.785-.969.165-.247.33-.206.557-.123.227.082 1.443.68 1.691.804.247.124.412.186.474.293.062.107.062.619-.212 1.392z" />
+              </svg>
+              Enquire on WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835" }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,71 +248,12 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
       {filteredSarees.length > 0 ? (
         <div className="saree-grid">
           {filteredSarees.map((saree) => (
-            <article className="saree-card" key={saree.id}>
-              {/* Saree Badge */}
-              <span className="saree-type-badge">
-                {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-              </span>
-
-              {/* Photo Wrapper */}
-              <div className="saree-image-wrapper" onClick={() => onViewSaree(saree)}>
-                <img 
-                  src={getImagePath(saree.image)} 
-                  alt={saree.title} 
-                  className="saree-img"
-                  loading="lazy"
-                />
-                
-                {/* Sold Stamp */}
-                {saree.sold && (
-                  <div className="sold-overlay">
-                    <div className="sold-stamp">Sold!</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Saree Info */}
-              <div className="saree-info">
-                <div className="saree-title-row">
-                  <h3 className="saree-card-title">{saree.title}</h3>
-                  <span className="saree-code">{saree.code}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0 12px' }}>
-                  <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                    ₹{saree.price || '5,000'}
-                  </span>
-                </div>
-                <p className="saree-desc">{saree.description}</p>
-                
-                <div className="saree-actions">
-                  {saree.sold ? (
-                    <button className="btn-whatsapp sold" disabled>
-                      Item Sold Out
-                    </button>
-                  ) : (
-                    <a 
-                      href={getWhatsAppLink(saree)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-whatsapp"
-                    >
-                      {/* Native Premium SVG WhatsApp Logo */}
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="16" 
-                        height="16" 
-                        viewBox="0 0 24 24" 
-                        fill="currentColor" 
-                        style={{ marginRight: '6px' }}
-                      >
-                        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.335 4.963L2 22l5.233-1.372a9.948 9.948 0 0 0 4.777 1.218h.004c5.505 0 9.988-4.478 9.989-9.984C22.007 6.478 17.52 2 12.012 2zm6.273 14.155c-.274.773-1.343 1.393-1.854 1.488-.475.088-.86.37-2.915-.461-2.483-1.004-4.047-3.525-4.17-3.69-.124-.165-.98-1.306-.98-2.494 0-1.188.62-1.77.842-2.006.223-.236.483-.294.644-.294.16 0 .32.001.46.007.15.006.354-.058.555.428.204.494.697 1.696.757 1.82.06.124.1.268.017.433-.082.164-.124.268-.247.412-.124.144-.26.32-.37.429-.124.124-.253.259-.109.508.144.247.64 1.056 1.371 1.706.942.84 1.737 1.1 1.986 1.224.248.124.392.103.537-.062.144-.165.62-.722.785-.969.165-.247.33-.206.557-.123.227.082 1.443.68 1.691.804.247.124.412.186.474.293.062.107.062.619-.212 1.392z" />
-                      </svg>
-                      Enquire on WhatsApp
-                    </a>
-                  )}
-                </div>
-              </div>
-            </article>
+            <SareeCard 
+              key={saree.id} 
+              saree={saree} 
+              onViewSaree={onViewSaree} 
+              getWhatsAppLink={getWhatsAppLink} 
+            />
           ))}
         </div>
       ) : (
