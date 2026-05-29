@@ -839,6 +839,12 @@ button {
   width: 6px;
 }
 
+.admin-catalog-list::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 .admin-catalog-list::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.02);
   border-radius: 3px;
