@@ -12,6 +12,7 @@ function App() {
   const [selectedSaree, setSelectedSaree] = useState(null); // Selected item for zoom lightbox modal
   const [activeImgIndex, setActiveImgIndex] = useState(0); // Active image index in the lightbox carousel
   const [dbError, setDbError] = useState(null); // Database error tracking
+  const [needsMigration, setNeedsMigration] = useState(false); // Tracks if old Base64 records require CDN migration
 
   // Fetch sarees from Supabase on mount
   useEffect(() => {
@@ -19,15 +20,23 @@ function App() {
       try {
         setLoading(true);
         setDbError(null);
-        // Query the 'sarees' table ordered by creation time
+        setNeedsMigration(false);
+        
+        // 1. Try to fetch details including the cover image URL
         const { data, error } = await supabase
           .from('sarees')
-          .select('*')
+          .select('id, code, title, type, description, price, image, sold, created_at')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
         if (data && data.length > 0) {
+          // Check if any cover image is still stored in Base64 format
+          const hasBase64Image = data.some(s => s.image && s.image.startsWith('data:'));
+          if (hasBase64Image) {
+            console.log('Found Base64 cover images. Page loaded but migration is recommended.');
+            setNeedsMigration(true);
+          }
           setSarees(data);
         } else {
           // DATABASE SEEDER: If database is brand-new and empty, seed it with the 18 sarees!
@@ -37,12 +46,42 @@ function App() {
             .insert(initialSarees);
 
           if (seedError) throw seedError;
-          
           setSarees(initialSarees);
         }
       } catch (err) {
-        console.error('Error fetching sarees from database:', err);
-        setDbError(err);
+        console.warn('Initial fetch timed out or failed due to heavy Base64 strings. Attempting lightweight text-only query...', err);
+        
+        // 2. Fallback query (excludes all image columns entirely) to avoid Postgres timeouts
+        try {
+          const { data: metadata, error: fallbackError } = await supabase
+            .from('sarees')
+            .select('id, code, title, type, description, price, sold, created_at')
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) throw fallbackError;
+
+          if (metadata && metadata.length > 0) {
+            // Map empty strings for media placeholders; they will load lazily per card on-demand
+            const mappedMetadata = metadata.map(s => ({
+              ...s,
+              image: '',
+              images: '[]'
+            }));
+            setSarees(mappedMetadata);
+            setNeedsMigration(true);
+          } else {
+            console.log('Database is empty during fallback. Seeding initial sarees...');
+            const { error: seedError } = await supabase
+              .from('sarees')
+              .insert(initialSarees);
+
+            if (seedError) throw seedError;
+            setSarees(initialSarees);
+          }
+        } catch (fallbackErr) {
+          console.error('Database is completely inaccessible:', fallbackErr);
+          setDbError(fallbackErr);
+        }
       } finally {
         setLoading(false);
       }
@@ -129,9 +168,30 @@ function App() {
     }
   };
 
-  const handleViewSaree = (saree) => {
+  const handleViewSaree = async (saree) => {
     setSelectedSaree(saree);
     setActiveImgIndex(0);
+
+    // Dynamic on-demand detail fetcher for missing cover image or multi-image carousel array
+    if (!saree.image || !saree.images || saree.images === '[]') {
+      try {
+        const { data, error } = await supabase
+          .from('sarees')
+          .select('image, images')
+          .eq('id', saree.id)
+          .single();
+        
+        if (!error && data) {
+          setSelectedSaree(prev => prev && prev.id === saree.id ? {
+            ...prev,
+            image: data.image,
+            images: data.images
+          } : prev);
+        }
+      } catch (err) {
+        console.error('Error fetching detail images on-demand:', err);
+      }
+    }
   };
 
   return (
@@ -266,6 +326,7 @@ create policy "Allow admin full access"
             sarees={sarees} 
             onViewSaree={handleViewSaree}
             whatsappNumber="919840709835"
+            needsMigration={needsMigration}
           />
         ) : (
           <AdminPanel 
@@ -274,6 +335,8 @@ create policy "Allow admin full access"
             onUpdateSaree={handleUpdateSaree}
             onToggleSold={handleToggleSold}
             onDeleteSaree={handleDeleteSaree}
+            needsMigration={needsMigration}
+            onMigrationComplete={() => setNeedsMigration(false)}
           />
         )}
       </main>

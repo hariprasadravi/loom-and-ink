@@ -4,7 +4,7 @@ import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 import { removeBackground } from '@imgly/background-removal';
 
-export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree }) {
+export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree, needsMigration, onMigrationComplete }) {
   // Real Supabase Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
@@ -25,6 +25,154 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   
   // Track if we are editing an existing item
   const [editingSaree, setEditingSaree] = useState(null);
+
+  // Database Migration States
+  const [migrationStatus, setMigrationStatus] = useState('idle'); // 'idle', 'migrating', 'done', 'error'
+  const [migrationProgress, setMigrationProgress] = useState(0);
+  const [migrationTotal, setMigrationTotal] = useState(0);
+  const [migrationLogs, setMigrationLogs] = useState([]);
+
+  // Sub-component to dynamically load saree thumbnail images inside stock rows
+  const AdminSareeRowThumb = ({ saree }) => {
+    const [imgUrl, setImgUrl] = useState(saree.image);
+
+    useEffect(() => {
+      if (!saree.image) {
+        const fetchCover = async () => {
+          try {
+            const { data } = await supabase
+              .from('sarees')
+              .select('image')
+              .eq('id', saree.id)
+              .single();
+            if (data && data.image) {
+              setImgUrl(data.image);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        };
+        fetchCover();
+      } else {
+        setImgUrl(saree.image);
+      }
+    }, [saree.id, saree.image]);
+
+    return (
+      <img src={getImagePath(imgUrl)} alt={saree.title} className="admin-saree-thumb" />
+    );
+  };
+
+  const startMigration = async () => {
+    try {
+      setMigrationStatus('migrating');
+      setMigrationProgress(0);
+      setMigrationTotal(sarees.length);
+      setMigrationLogs(['Initiating client-side database migration with authenticated session...']);
+
+      for (let i = 0; i < sarees.length; i++) {
+        const saree = sarees[i];
+        setMigrationProgress(i);
+        setMigrationLogs(prev => [...prev, `[${i + 1}/${sarees.length}] Checking Saree ${saree.code} "${saree.title}"...`]);
+
+        // Fetch single row's image columns (avoids statement timeout)
+        const { data: rowData, error: rowError } = await supabase
+          .from('sarees')
+          .select('image, images')
+          .eq('id', saree.id)
+          .single();
+
+        if (rowError) {
+          setMigrationLogs(prev => [...prev, `  ❌ Error fetching media for ${saree.code}: ${rowError.message}`]);
+          continue;
+        }
+
+        let updatedImage = rowData.image;
+        let updatedImagesList = [];
+        let needsUpdate = false;
+
+        // Cover image migration
+        if (rowData.image && rowData.image.startsWith('data:')) {
+          setMigrationLogs(prev => [...prev, `  -> Base64 cover detected. Uploading to saree-photos storage bucket...`]);
+          try {
+            const publicUrl = await uploadToStorage(rowData.image, saree.code, 'cover');
+            updatedImage = publicUrl;
+            needsUpdate = true;
+            setMigrationLogs(prev => [...prev, `  ✔ Cover image migrated to CDN!`]);
+          } catch (uploadErr) {
+            setMigrationLogs(prev => [...prev, `  ❌ Cover image upload failed: ${uploadErr.message || uploadErr}`]);
+          }
+        }
+
+        // Secondary images migration
+        let parsedImages = [];
+        try {
+          if (rowData.images) {
+            parsedImages = JSON.parse(rowData.images);
+          }
+        } catch (e) {
+          if (rowData.images) parsedImages = [rowData.images];
+        }
+
+        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+          for (let idx = 0; idx < parsedImages.length; idx++) {
+            const img = parsedImages[idx];
+            if (img && img.startsWith('data:')) {
+              setMigrationLogs(prev => [...prev, `  -> Base64 secondary image #${idx + 1} detected. Uploading...`]);
+              try {
+                const publicUrl = await uploadToStorage(img, saree.code, `sec_${idx}`);
+                updatedImagesList.push(publicUrl);
+                needsUpdate = true;
+                setMigrationLogs(prev => [...prev, `  ✔ Secondary image #${idx + 1} migrated to CDN!`]);
+              } catch (uploadErr) {
+                setMigrationLogs(prev => [...prev, `  ❌ Secondary image #${idx + 1} upload failed: ${uploadErr.message || uploadErr}`]);
+                updatedImagesList.push(img);
+              }
+            } else if (img) {
+              updatedImagesList.push(img);
+            }
+          }
+        }
+
+        // Update database row and local parent state if changes were made
+        if (needsUpdate) {
+          const { error: updateError } = await supabase
+            .from('sarees')
+            .update({
+              image: updatedImage,
+              images: JSON.stringify(updatedImagesList)
+            })
+            .eq('id', saree.id);
+
+          if (updateError) {
+            setMigrationLogs(prev => [...prev, `  ❌ DB update failed for ${saree.code}: ${updateError.message}`]);
+          } else {
+            setMigrationLogs(prev => [...prev, `  ✔ Successfully committed CDN URLs to database!`]);
+            onUpdateSaree({
+              ...saree,
+              image: updatedImage,
+              images: JSON.stringify(updatedImagesList)
+            });
+          }
+        } else {
+          setMigrationLogs(prev => [...prev, `  ✔ Already migrated (clean CDN URLs detected).`]);
+        }
+      }
+
+      setMigrationProgress(sarees.length);
+      setMigrationStatus('done');
+      setMigrationLogs(prev => [...prev, `🎉 CDN Database Migration complete! Your website will now load instantly.`]);
+      
+      setTimeout(() => {
+        if (onMigrationComplete) onMigrationComplete();
+      }, 3000);
+
+    } catch (err) {
+      console.error(err);
+      setMigrationStatus('error');
+      setMigrationLogs(prev => [...prev, `❌ Migration crashed: ${err.message || err}`]);
+    }
+  };
 
   // Check auth session on load and listen to changes
   useEffect(() => {
@@ -448,6 +596,103 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         </button>
       </div>
 
+      {/* Database Performance Migration Card (CDN Transition) */}
+      {needsMigration && (
+        <div style={{ 
+          backgroundColor: '#fffaf0', 
+          border: '1px solid #ebdcb9', 
+          borderRadius: '12px', 
+          padding: '24px', 
+          marginBottom: '40px', 
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <Sparkles size={24} style={{ color: 'var(--accent-gold)' }} />
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)' }}>
+              Database Performance Upgrade Required
+            </h3>
+          </div>
+          <p style={{ margin: '0 0 16px', fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+            We have detected that several of your pre-existing sarees still store heavy photo data directly inside the database. 
+            This is causing connection timeouts for visitors. Click below to automatically migrate your entire catalog to the 
+            high-speed Supabase Storage bucket. This takes 1 minute and speeds up your website by 98%.
+          </p>
+
+          {migrationStatus === 'idle' && (
+            <button 
+              type="button"
+              onClick={startMigration} 
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Sparkles size={16} />
+              Start Automated CDN Migration
+            </button>
+          )}
+
+          {migrationStatus === 'migrating' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-dark)' }}>
+                <span>Migrating Catalog...</span>
+                <span>{migrationProgress} of {migrationTotal} Sarees</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+                <div style={{ 
+                  width: `${(migrationProgress / migrationTotal) * 100}%`, 
+                  height: '100%', 
+                  backgroundColor: 'var(--accent-terracotta)', 
+                  transition: 'width 0.3s ease' 
+                }} />
+              </div>
+              <div style={{ 
+                backgroundColor: '#2d3748', 
+                color: '#edf2f7', 
+                fontFamily: 'monospace', 
+                fontSize: '11px', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                maxHeight: '120px', 
+                overflowY: 'auto',
+                lineHeight: '1.4'
+              }}>
+                {migrationLogs.map((log, index) => (
+                  <div key={index}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {migrationStatus === 'done' && (
+            <div style={{ color: 'var(--accent-gold)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+              <Check size={18} />
+              Database successfully migrated! The website will now reload with lightning-fast speeds.
+            </div>
+          )}
+
+          {migrationStatus === 'error' && (
+            <div>
+              <p style={{ color: 'red', fontWeight: '600', fontSize: '13px', margin: '0 0 12px' }}>
+                Migration encountered an error. Please reload the page and try again.
+              </p>
+              <div style={{ 
+                backgroundColor: '#2d3748', 
+                color: '#edf2f7', 
+                fontFamily: 'monospace', 
+                fontSize: '11px', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                maxHeight: '100px', 
+                overflowY: 'auto'
+              }}>
+                {migrationLogs.map((log, index) => (
+                  <div key={index}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '40px' }}>
         
         {/* Left Side: Add Saree Form */}
@@ -665,7 +910,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
             {sarees.length > 0 ? (
               sarees.map((saree) => (
                 <div className="admin-saree-row" key={saree.id}>
-                  <img src={getImagePath(saree.image)} alt={saree.title} className="admin-saree-thumb" />
+                  <AdminSareeRowThumb saree={saree} />
                   <div className="admin-saree-meta">
                     <div className="admin-saree-name">{saree.title}</div>
                     <div className="admin-saree-type">

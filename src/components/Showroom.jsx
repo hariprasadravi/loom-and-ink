@@ -1,6 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
+import { supabase } from '../utils/supabaseClient';
+
+function SareeCardImage({ saree, onViewSaree }) {
+  const [imgUrl, setImgUrl] = useState(saree.image);
+  const [loading, setLoading] = useState(!saree.image);
+
+  useEffect(() => {
+    if (!saree.image) {
+      const fetchCover = async () => {
+        try {
+          const { data } = await supabase
+            .from('sarees')
+            .select('image')
+            .eq('id', saree.id)
+            .single();
+          if (data && data.image) {
+            setImgUrl(data.image);
+          }
+        } catch (e) {
+          console.error('Error loading card cover image:', e);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCover();
+    } else {
+      setImgUrl(saree.image);
+      setLoading(false);
+    }
+  }, [saree.id, saree.image]);
+
+  return (
+    <div className="saree-image-wrapper" onClick={() => onViewSaree(saree)}>
+      {loading ? (
+        <div style={{ width: '100%', height: '320px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdfbf7', gap: '12px', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite' }}></div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Loading image...</span>
+        </div>
+      ) : (
+        <img 
+          src={getImagePath(imgUrl)} 
+          alt={saree.title} 
+          className="saree-img"
+          loading="lazy"
+        />
+      )}
+      
+      {/* Sold Stamp */}
+      {saree.sold && (
+        <div className="sold-overlay">
+          <div className="sold-stamp">Sold!</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835" }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,22 +199,8 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                 {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
               </span>
 
-              {/* Photo Wrapper */}
-              <div className="saree-image-wrapper" onClick={() => onViewSaree(saree)}>
-                <img 
-                  src={getImagePath(saree.image)} 
-                  alt={saree.title} 
-                  className="saree-img"
-                  loading="lazy"
-                />
-                
-                {/* Sold Stamp */}
-                {saree.sold && (
-                  <div className="sold-overlay">
-                    <div className="sold-stamp">Sold!</div>
-                  </div>
-                )}
-              </div>
+              {/* Lazy Loaded On-Demand Photo Wrapper */}
+              <SareeCardImage saree={saree} onViewSaree={onViewSaree} />
 
               {/* Saree Info */}
               <div className="saree-info">
