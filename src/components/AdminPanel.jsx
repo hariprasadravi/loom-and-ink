@@ -21,6 +21,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [imagePreviews, setImagePreviews] = useState([]); // Array of { url: string, isCover: boolean, processing?: boolean }
   const [isSold, setIsSold] = useState(false);
   const [autoRemoveBg, setAutoRemoveBg] = useState(false); // AI background removal toggle
+  const [publishing, setPublishing] = useState(false); // Track bucket publishing loading state
   
   // Track if we are editing an existing item
   const [editingSaree, setEditingSaree] = useState(null);
@@ -267,7 +268,52 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setIsSold(false);
   };
 
-  const handleSubmit = (e) => {
+  const base64ToBlob = (base64Str) => {
+    const parts = base64Str.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    return new Blob([uInt8Array], { type: contentType });
+  };
+
+  const uploadToStorage = async (base64Str, sareeCode, index) => {
+    if (!base64Str.startsWith('data:')) {
+      // Already a cloud URL (no upload needed)
+      return base64Str;
+    }
+
+    try {
+      const blob = base64ToBlob(base64Str);
+      const isPNG = base64Str.startsWith('data:image/png');
+      const fileExt = isPNG ? 'png' : 'jpg';
+      const fileName = `${sareeCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}_${index}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('saree-photos')
+        .upload(fileName, blob, {
+          contentType: isPNG ? 'image/png' : 'image/jpeg',
+          cacheControl: '31536000',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('saree-photos')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (err) {
+      console.error('Error uploading file to storage bucket:', err);
+      throw err;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !code || !description) {
       alert('Please fill out all text fields.');
@@ -279,54 +325,69 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       return;
     }
 
-    let coverImg = imagePreviews.find(img => img.isCover)?.url;
-    if (!coverImg && imagePreviews.length > 0) {
-      coverImg = imagePreviews[0].url;
+    try {
+      setPublishing(true);
+
+      // Upload all new base64 files to public Supabase bucket in parallel
+      const uploadPromises = imagePreviews.map((img, index) => 
+        uploadToStorage(img.url, code, index)
+      );
+      
+      const publicUrls = await Promise.all(uploadPromises);
+
+      // Match which URL belongs to the designated cover photo
+      const coverIndex = imagePreviews.findIndex(img => img.isCover);
+      const coverImgUrl = coverIndex !== -1 ? publicUrls[coverIndex] : publicUrls[0];
+
+      const serializedImages = JSON.stringify(publicUrls);
+
+      if (editingSaree) {
+        const updatedSaree = {
+          ...editingSaree,
+          code: code.toUpperCase(),
+          title,
+          type,
+          description,
+          price,
+          image: coverImgUrl,
+          images: serializedImages,
+          sold: isSold
+        };
+
+        await onUpdateSaree(updatedSaree);
+        setEditingSaree(null);
+        alert('Item updated successfully!');
+      } else {
+        const newSaree = {
+          id: `saree-${Date.now()}`,
+          code: code.toUpperCase(),
+          title,
+          type,
+          description,
+          price,
+          image: coverImgUrl,
+          images: serializedImages,
+          sold: isSold
+        };
+
+        await onAddSaree(newSaree);
+        alert('Item added successfully!');
+      }
+      
+      // Reset Form
+      setTitle('');
+      setCode('');
+      setType('kalamkari');
+      setDescription('');
+      setPrice('5,000');
+      setImagePreviews([]);
+      setIsSold(false);
+    } catch (err) {
+      console.error('Error publishing saree:', err);
+      alert('Error publishing item: ' + (err.message || err));
+    } finally {
+      setPublishing(false);
     }
-
-    const serializedImages = JSON.stringify(imagePreviews.map(img => img.url));
-
-    if (editingSaree) {
-      const updatedSaree = {
-        ...editingSaree,
-        code: code.toUpperCase(),
-        title,
-        type,
-        description,
-        price,
-        image: coverImg,
-        images: serializedImages,
-        sold: isSold
-      };
-
-      onUpdateSaree(updatedSaree);
-      setEditingSaree(null);
-      alert('Item updated successfully!');
-    } else {
-      const newSaree = {
-        id: `saree-${Date.now()}`,
-        code: code.toUpperCase(),
-        title,
-        type,
-        description,
-        price,
-        image: coverImg,
-        images: serializedImages,
-        sold: isSold
-      };
-
-      onAddSaree(newSaree);
-      alert('Item added successfully!');
-    }
-    
-    // Reset Form
-    setTitle('');
-    setCode('');
-    setType('kalamkari');
-    setDescription('');
-    setPrice('5,000');
-    setImagePreviews([]);
-    setIsSold(false);
   };
 
   if (!isAuthenticated) {
@@ -574,12 +635,21 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
             </div>
 
              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                 {editingSaree ? <Check size={18} /> : <Plus size={18} />}
-                 {editingSaree ? 'Save Item Details' : 'Publish Item to Showroom'}
+               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={publishing}>
+                 {publishing ? (
+                   <>
+                     <div style={{ border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', width: '14px', height: '14px', animation: 'spin 1s linear infinite', marginRight: '8px' }}></div>
+                     Uploading to Cloud Storage...
+                   </>
+                 ) : (
+                   <>
+                     {editingSaree ? <Check size={18} style={{ marginRight: '6px' }} /> : <Plus size={18} style={{ marginRight: '6px' }} />}
+                     {editingSaree ? 'Save Item Details' : 'Publish Item to Showroom'}
+                   </>
+                 )}
                </button>
                {editingSaree && (
-                 <button type="button" className="btn-secondary" onClick={cancelEditing} style={{ width: '100%', justifyContent: 'center' }}>
+                 <button type="button" className="btn-secondary" onClick={cancelEditing} style={{ width: '100%', justifyContent: 'center' }} disabled={publishing}>
                    Cancel Edit
                  </button>
                )}
@@ -594,13 +664,52 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           <div style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
             {sarees.length > 0 ? (
               sarees.map((saree) => (
-                <AdminSareeRow 
-                  key={saree.id} 
-                  saree={saree} 
-                  onStartEditing={startEditing} 
-                  onToggleSold={onToggleSold} 
-                  onDeleteSaree={onDeleteSaree} 
-                />
+                <div className="admin-saree-row" key={saree.id}>
+                  <img src={getImagePath(saree.image)} alt={saree.title} className="admin-saree-thumb" />
+                  <div className="admin-saree-meta">
+                    <div className="admin-saree-name">{saree.title}</div>
+                    <div className="admin-saree-type">
+                      Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </div>
+                  </div>
+
+                  {/* Sold Switch with Tooltip */}
+                  <div 
+                    className="switch-container"
+                    title="Toggle to instantly mark this item as Sold or Available."
+                  >
+                    <input 
+                      type="checkbox" 
+                      id={`sold-switch-${saree.id}`}
+                      checked={saree.sold}
+                      onChange={() => onToggleSold(saree.id)}
+                      className="switch-input-hidden"
+                    />
+                    <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
+                  </div>
+
+                  {/* Edit button */}
+                  <button 
+                    onClick={() => startEditing(saree)}
+                    style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
+                    title="Edit Item Details"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+
+                  {/* Delete button */}
+                  <button 
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete ${saree.title}?`)) {
+                        onDeleteSaree(saree.id);
+                      }
+                    }}
+                    style={{ color: '#c53030', padding: '6px' }}
+                    title="Delete Item"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               ))
             ) : (
               <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No items in showroom.</p>
@@ -609,105 +718,6 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
         </div>
 
       </div>
-    </div>
-  );
-}
-
-function AdminSareeRow({ saree, onStartEditing, onToggleSold, onDeleteSaree }) {
-  const [coverImage, setCoverImage] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchCover = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sarees')
-          .select('image')
-          .eq('id', saree.id)
-          .single();
-
-        if (isMounted && !error && data) {
-          setCoverImage(data.image);
-        }
-      } catch (err) {
-        console.error('Error fetching admin row cover image:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchCover();
-    return () => {
-      isMounted = false;
-    };
-  }, [saree.id]);
-
-  const handleEdit = () => {
-    onStartEditing({ ...saree, image: coverImage });
-  };
-
-  const handleToggle = () => {
-    onToggleSold(saree.id);
-  };
-
-  const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete ${saree.title || 'this item'}?`)) {
-      onDeleteSaree(saree.id);
-    }
-  };
-
-  const currentImage = coverImage || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 4"%3E%3C/svg%3E';
-
-  return (
-    <div className="admin-saree-row">
-      {loading ? (
-        <div className="admin-saree-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '10px', height: '10px', animation: 'spin 1s linear infinite' }}></div>
-        </div>
-      ) : (
-        <img src={getImagePath(currentImage)} alt={saree.title} className="admin-saree-thumb" />
-      )}
-      <div className="admin-saree-meta">
-        <div className="admin-saree-name">{saree.title}</div>
-        <div className="admin-saree-type">
-          Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-        </div>
-      </div>
-
-      {/* Sold Switch with Tooltip */}
-      <div 
-        className="switch-container"
-        title="Toggle to instantly mark this item as Sold or Available."
-        style={{ marginRight: '8px' }}
-      >
-        <input 
-          type="checkbox" 
-          id={`sold-switch-${saree.id}`}
-          checked={saree.sold}
-          onChange={handleToggle}
-          className="switch-input-hidden"
-        />
-        <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
-      </div>
-
-      {/* Edit button */}
-      <button 
-        onClick={handleEdit}
-        style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
-        title="Edit Item Details"
-      >
-        <Edit2 size={16} />
-      </button>
-
-      {/* Delete button */}
-      <button 
-        onClick={handleDelete}
-        style={{ color: '#c53030', padding: '6px' }}
-        title="Delete Item"
-      >
-        <Trash2 size={16} />
-      </button>
     </div>
   );
 }

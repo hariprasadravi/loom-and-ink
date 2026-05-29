@@ -19,11 +19,10 @@ function App() {
       try {
         setLoading(true);
         setDbError(null);
-        // Query only the lightweight summary text columns (completely excluding heavy base64 image columns)
-        // This ensures the site mounts in milliseconds and is 100% immune to statement timeouts
+        // Query the 'sarees' table ordered by creation time
         const { data, error } = await supabase
           .from('sarees')
-          .select('id, code, title, type, description, price, sold, created_at')
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -130,34 +129,9 @@ function App() {
     }
   };
 
-  const handleViewSaree = async (saree) => {
+  const handleViewSaree = (saree) => {
     setSelectedSaree(saree);
     setActiveImgIndex(0);
-
-    // Fetch full secondary images asynchronously if not already cached/loaded
-    if (!saree.imagesLoaded) {
-      try {
-        const { data, error } = await supabase
-          .from('sarees')
-          .select('images')
-          .eq('id', saree.id)
-          .single();
-
-        if (!error && data && data.images) {
-          setSelectedSaree((prev) => {
-            if (prev && prev.id === saree.id) {
-              return { ...prev, images: data.images, imagesLoaded: true };
-            }
-            return prev;
-          });
-          setSarees((prev) =>
-            prev.map((s) => (s.id === saree.id ? { ...s, images: data.images, imagesLoaded: true } : s))
-          );
-        }
-      } catch (err) {
-        console.error('Error fetching secondary images:', err);
-      }
-    }
   };
 
   return (
