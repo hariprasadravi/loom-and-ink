@@ -830,6 +830,11 @@ button {
 }
 
 /* Custom premium scrollbar for the live catalog list */
+.admin-catalog-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-terracotta) rgba(0, 0, 0, 0.02);
+}
+
 .admin-catalog-list::-webkit-scrollbar {
   width: 6px;
 }
