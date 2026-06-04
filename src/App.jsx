@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
-import { X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 
 function App() {
@@ -25,7 +25,7 @@ function App() {
         // 1. Try to fetch details including the cover image URL
         const { data, error } = await supabase
           .from('sarees')
-          .select('id, code, title, type, description, price, image, sold, created_at')
+          .select('id, code, title, type, description, price, original_price, draft, image, sold, created_at')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -55,7 +55,7 @@ function App() {
         try {
           const { data: metadata, error: fallbackError } = await supabase
             .from('sarees')
-            .select('id, code, title, type, description, price, sold, created_at')
+            .select('id, code, title, type, description, price, original_price, draft, sold, created_at')
             .order('created_at', { ascending: false });
 
           if (fallbackError) throw fallbackError;
@@ -136,6 +136,8 @@ function App() {
           type: updatedSaree.type,
           description: updatedSaree.description,
           price: updatedSaree.price,
+          original_price: updatedSaree.original_price,
+          draft: updatedSaree.draft,
           image: updatedSaree.image,
           images: updatedSaree.images,
           sold: updatedSaree.sold
@@ -444,14 +446,51 @@ create policy "Allow admin full access"
 
               <h3 className="modal-title" style={{ marginTop: '16px', marginBottom: '8px' }}>{selectedSaree.title}</h3>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
-                <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', margin: '0' }}>
-                  Code: {selectedSaree.code} • {selectedSaree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                </p>
-                <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                  ₹{selectedSaree.price || '5,000'}
-                </span>
-              </div>
+              {/* Pricing section with Aadi Thallupadi Discount display */}
+              {(() => {
+                const calculateDiscountPercentage = (orig, act) => {
+                  if (!orig || !act) return null;
+                  const original = parseFloat(orig.replace(/[^0-9.]/g, ''));
+                  const active = parseFloat(act.replace(/[^0-9.]/g, ''));
+                  if (original && active && original > active) {
+                    return Math.round(((original - active) / original) * 100);
+                  }
+                  return null;
+                };
+                const discountPct = calculateDiscountPercentage(selectedSaree.original_price, selectedSaree.price);
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <p style={{ color: 'var(--accent-gold)', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', margin: '0' }}>
+                        Code: {selectedSaree.code} • {selectedSaree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {selectedSaree.original_price ? (
+                          <>
+                            <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
+                              ₹{selectedSaree.price}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '15px', fontFamily: 'var(--font-serif)' }}>
+                              ₹{selectedSaree.original_price}
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
+                            ₹{selectedSaree.price || '5,000'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {discountPct && (
+                      <div style={{ display: 'flex', alignSelf: 'flex-end', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                        <Sparkles size={11} />
+                        ஆடித்தள்ளுபடி (Aadi Discount) • {discountPct}% Off
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               
               <p className="modal-desc" style={{ marginTop: '0' }}>{selectedSaree.description}</p>
             </div>

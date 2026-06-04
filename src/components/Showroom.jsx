@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
@@ -65,6 +65,9 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
 
   // Filter logic
   const filteredSarees = sarees.filter(saree => {
+    // Hide drafts from public view
+    if (saree.draft) return false;
+
     // Search filter
     const matchesSearch = 
       saree.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -208,11 +211,46 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                   <h3 className="saree-card-title">{saree.title}</h3>
                   <span className="saree-code">{saree.code}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0 12px' }}>
-                  <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                    ₹{saree.price || '5,000'}
-                  </span>
-                </div>
+                {/* Pricing and Aadi Thallupadi Discount Tag */}
+                {(() => {
+                  const calculateDiscountPercentage = (orig, act) => {
+                    if (!orig || !act) return null;
+                    const original = parseFloat(orig.replace(/[^0-9.]/g, ''));
+                    const active = parseFloat(act.replace(/[^0-9.]/g, ''));
+                    if (original && active && original > active) {
+                      return Math.round(((original - active) / original) * 100);
+                    }
+                    return null;
+                  };
+                  const discountPct = calculateDiscountPercentage(saree.original_price, saree.price);
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '4px 0 12px', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {saree.original_price ? (
+                          <>
+                            <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
+                              ₹{saree.price}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '14px', fontFamily: 'var(--font-serif)' }}>
+                              ₹{saree.original_price}
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
+                            ₹{saree.price || '5,000'}
+                          </span>
+                        )}
+                      </div>
+                      {discountPct && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                          <Sparkles size={10} />
+                          ஆடித்தள்ளுபடி • {discountPct}% Off
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <p className="saree-desc">{saree.description}</p>
                 
                 <div className="saree-actions">

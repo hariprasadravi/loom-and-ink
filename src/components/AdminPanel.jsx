@@ -18,6 +18,8 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [type, setType] = useState('kalamkari');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('5,000');
+  const [originalPrice, setOriginalPrice] = useState(''); // Original price for discount strikeout
+  const [isDraft, setIsDraft] = useState(false); // Track draft status
   const [imagePreviews, setImagePreviews] = useState([]); // Array of { url: string, isCover: boolean, processing?: boolean }
   const [isSold, setIsSold] = useState(false);
   const [autoRemoveBg, setAutoRemoveBg] = useState(false); // AI background removal toggle
@@ -479,6 +481,8 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setType(saree.type);
     setDescription(saree.description);
     setPrice(saree.price || '5,000');
+    setOriginalPrice(saree.original_price || '');
+    setIsDraft(saree.draft || false);
     setIsSold(saree.sold);
 
     // Load cover image immediately to prevent uploader UI jumping
@@ -520,8 +524,10 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setType('kalamkari');
     setDescription('');
     setPrice('5,000');
+    setOriginalPrice('');
     setImagePreviews([]);
     setIsSold(false);
+    setIsDraft(false);
   };
 
   const base64ToBlob = (base64Str) => {
@@ -569,8 +575,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const submitForm = async (draftValue) => {
     if (!title || !code || !description) {
       alert('Please fill out all text fields.');
       return;
@@ -605,6 +610,8 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           type,
           description,
           price,
+          original_price: originalPrice || null,
+          draft: draftValue,
           image: coverImgUrl,
           images: serializedImages,
           sold: isSold
@@ -612,7 +619,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
         await onUpdateSaree(updatedSaree);
         setEditingSaree(null);
-        alert('Item updated successfully!');
+        alert(draftValue ? 'Draft details saved successfully!' : 'Item updated and published successfully!');
       } else {
         const newSaree = {
           id: `saree-${Date.now()}`,
@@ -621,13 +628,15 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           type,
           description,
           price,
+          original_price: originalPrice || null,
+          draft: draftValue,
           image: coverImgUrl,
           images: serializedImages,
           sold: isSold
         };
 
         await onAddSaree(newSaree);
-        alert('Item added successfully!');
+        alert(draftValue ? 'Draft saved successfully!' : 'Item added and published successfully!');
       }
       
       // Reset Form
@@ -636,14 +645,22 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       setType('kalamkari');
       setDescription('');
       setPrice('5,000');
+      setOriginalPrice('');
       setImagePreviews([]);
       setIsSold(false);
+      setIsDraft(false);
     } catch (err) {
       console.error('Error publishing saree:', err);
-      alert('Error publishing item: ' + (err.message || err));
+      alert('Error saving item: ' + (err.message || err));
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const draftValue = editingSaree ? !!editingSaree.draft : false;
+    submitForm(draftValue);
   };
 
   if (!isAuthenticated) {
@@ -926,16 +943,28 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Price (₹)</label>
-              <input 
-                type="text" 
-                placeholder="e.g. 5,000"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="form-input"
-                required
-              />
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+              <div className="form-group" style={{ flex: '1 1 140px' }}>
+                <label className="form-label">Active / Discount Price (₹)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 4,000"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ flex: '1 1 140px' }}>
+                <label className="form-label">Original Price (₹) - Optional</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 5,000 (strikeout)"
+                  value={originalPrice}
+                  onChange={(e) => setOriginalPrice(e.target.value)}
+                  className="form-input"
+                />
+              </div>
             </div>
 
             <div className="form-group">
@@ -1096,23 +1125,67 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
             </div>
 
              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={publishing}>
-                 {publishing ? (
-                   <>
-                     <div style={{ border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', width: '14px', height: '14px', animation: 'spin 1s linear infinite', marginRight: '8px' }}></div>
-                     Uploading to Cloud Storage...
-                   </>
-                 ) : (
-                   <>
-                     {editingSaree ? <Check size={18} style={{ marginRight: '6px' }} /> : <Plus size={18} style={{ marginRight: '6px' }} />}
-                     {editingSaree ? 'Save Item Details' : 'Publish Item to Showroom'}
-                   </>
-                 )}
-               </button>
-               {editingSaree && (
-                 <button type="button" className="btn-secondary" onClick={cancelEditing} style={{ width: '100%', justifyContent: 'center' }} disabled={publishing}>
-                   Cancel Edit
+               {publishing ? (
+                 <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'center', cursor: 'not-allowed' }} disabled>
+                   <div style={{ border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', width: '14px', height: '14px', animation: 'spin 1s linear infinite', marginRight: '8px' }}></div>
+                   Saving & Processing...
                  </button>
+               ) : (
+                 <>
+                   {editingSaree ? (
+                     <>
+                       <button 
+                         type="button" 
+                         onClick={() => submitForm(false)} 
+                         className="btn-primary" 
+                         style={{ width: '100%', justifyContent: 'center' }}
+                       >
+                         <Check size={18} style={{ marginRight: '6px' }} />
+                         {editingSaree.draft ? 'Publish to Showroom' : 'Save & Keep Published'}
+                       </button>
+                       <button 
+                         type="button" 
+                         onClick={() => submitForm(true)} 
+                         className="btn-secondary" 
+                         style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
+                       >
+                         <Upload size={16} style={{ marginRight: '6px' }} />
+                         {editingSaree.draft ? 'Save Draft Details' : 'Revert to Draft'}
+                       </button>
+                     </>
+                   ) : (
+                     <>
+                       <button 
+                         type="button" 
+                         onClick={() => submitForm(false)} 
+                         className="btn-primary" 
+                         style={{ width: '100%', justifyContent: 'center' }}
+                       >
+                         <Plus size={18} style={{ marginRight: '6px' }} />
+                         Publish to Showroom
+                       </button>
+                       <button 
+                         type="button" 
+                         onClick={() => submitForm(true)} 
+                         className="btn-secondary" 
+                         style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
+                       >
+                         <Upload size={16} style={{ marginRight: '6px' }} />
+                         Save as Draft
+                       </button>
+                     </>
+                   )}
+                   {editingSaree && (
+                     <button 
+                       type="button" 
+                       className="btn-secondary" 
+                       onClick={cancelEditing} 
+                       style={{ width: '100%', justifyContent: 'center', color: '#c53030' }}
+                     >
+                       Cancel Edit
+                     </button>
+                   )}
+                 </>
                )}
              </div>
           </form>
@@ -1128,7 +1201,14 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                 <div className="admin-saree-row" key={saree.id}>
                   <AdminSareeRowThumb saree={saree} />
                   <div className="admin-saree-meta">
-                    <div className="admin-saree-name">{saree.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="admin-saree-name">{saree.title}</div>
+                      {saree.draft && (
+                        <span style={{ backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Draft
+                        </span>
+                      )}
+                    </div>
                     <div className="admin-saree-type">
                       Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </div>
