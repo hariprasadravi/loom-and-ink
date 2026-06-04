@@ -26,6 +26,109 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   // Track if we are editing an existing item
   const [editingSaree, setEditingSaree] = useState(null);
 
+  // Gemini AI States
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    return localStorage.getItem('pattupol-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+  });
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showAiSettings, setShowAiSettings] = useState(false);
+
+  // Helper utility to convert a local file dataURL or absolute HTTP URL to raw base64 data
+  const getBase64FromUrlOrData = async (url) => {
+    if (url.startsWith('data:')) {
+      const parts = url.split(';base64,');
+      const mimeType = parts[0].split(':')[1];
+      const base64Data = parts[1];
+      return { mimeType, base64Data };
+    } else if (url.startsWith('http')) {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result;
+          const parts = result.split(';base64,');
+          resolve({
+            mimeType: blob.type || 'image/jpeg',
+            base64Data: parts[1]
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+    throw new Error('Unsupported image format');
+  };
+
+  const handleAutoGenerate = async () => {
+    if (imagePreviews.length === 0) {
+      alert('Please upload or select at least one photo first.');
+      return;
+    }
+
+    const activeKey = geminiApiKey || localStorage.getItem('pattupol-gemini-key') || '';
+    if (!activeKey) {
+      setShowAiSettings(true);
+      alert('Please enter your Gemini API Key in the AI Settings panel first.');
+      return;
+    }
+
+    try {
+      setAiGenerating(true);
+      const firstImg = imagePreviews[0].url;
+      const { mimeType, base64Data } = await getBase64FromUrlOrData(firstImg);
+
+      const promptText = `Analyze this saree photo. Provide a suitable, elegant title (max 5 words) and a detailed description (2-3 sentences describing the weaving style, color palette, texture, or pattern) in a premium, poetic tone suitable for an authentic Indian handloom saree store. Do not mention prices or stock codes. Respond ONLY in a JSON object with keys "title" and "description", formatted as raw JSON (no markdown formatting, no backticks).`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: promptText },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!candidateText) {
+        throw new Error('Empty response from AI model');
+      }
+
+      const result = JSON.parse(candidateText.trim());
+      if (result.title) setTitle(result.title);
+      if (result.description) setDescription(result.description);
+
+      alert('AI copywriting populated successfully!');
+    } catch (err) {
+      console.error('Error generating AI copy:', err);
+      alert(`AI Generation failed: ${err.message || err}`);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // Database Migration States
   const [migrationStatus, setMigrationStatus] = useState('idle'); // 'idle', 'migrating', 'done', 'error'
   const [migrationProgress, setMigrationProgress] = useState(0);
@@ -590,11 +693,88 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           <h1 style={{ color: 'var(--primary-indigo)', fontSize: '36px' }}>Catalog Manager</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Add new stock or toggle "Sold!" tags instantly.</p>
         </div>
-        <button className="btn-secondary" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <LogOut size={16} />
-          Log Out
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            type="button" 
+            className="btn-secondary" 
+            onClick={() => setShowAiSettings(!showAiSettings)} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border-color)' }}
+            title="Configure Gemini API Settings"
+          >
+            <Sparkles size={16} style={{ color: 'var(--accent-gold)' }} />
+            AI Settings
+          </button>
+          <button className="btn-secondary" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <LogOut size={16} />
+            Log Out
+          </button>
+        </div>
       </div>
+
+      {/* AI Writer Configuration Panel */}
+      {showAiSettings && (
+        <div style={{ 
+          backgroundColor: '#fffaf0', 
+          border: '1px solid var(--border-color)', 
+          borderRadius: '12px', 
+          padding: '24px', 
+          marginBottom: '40px', 
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)' 
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Sparkles size={20} style={{ color: 'var(--accent-gold)' }} />
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)' }}>
+                Gemini AI Writer Settings
+              </h3>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setShowAiSettings(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--text-muted)', fontWeight: 'bold' }}
+            >
+              ×
+            </button>
+          </div>
+          
+          <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            The AI writing assistant uses Google's Gemini 2.5 Flash model to auto-generate beautiful titles and descriptions based on your saree photos. 
+            Paste your free API key from <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-terracotta)', textDecoration: 'underline', fontWeight: '500' }}>Google AI Studio</a> below.
+          </p>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input 
+              type="password" 
+              placeholder="Paste your Gemini API Key here (starts with AIza...)"
+              value={geminiApiKey}
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                setGeminiApiKey(val);
+                localStorage.setItem('pattupol-gemini-key', val);
+              }}
+              style={{ 
+                flexGrow: 1, 
+                padding: '10px 14px', 
+                borderRadius: '6px', 
+                border: '1px solid var(--border-color)', 
+                fontSize: '13px', 
+                fontFamily: 'monospace',
+                backgroundColor: '#fff',
+                minWidth: '280px'
+              }}
+            />
+            {geminiApiKey ? (
+              <span style={{ fontSize: '12px', color: 'green', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
+                <Check size={14} /> Key Configured
+              </span>
+            ) : (
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                No Key configured
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Database Performance Migration Card (CDN Transition) */}
       {needsMigration && (
@@ -856,6 +1036,37 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                   ))}
                 </div>
               )}
+
+              {/* AI Auto-Generate Content Button */}
+              <div style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerate}
+                  disabled={aiGenerating || imagePreviews.length === 0}
+                  className="btn-primary"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    backgroundColor: 'var(--primary-indigo)',
+                    borderColor: 'var(--primary-indigo)',
+                    opacity: imagePreviews.length === 0 ? 0.6 : 1,
+                    cursor: (aiGenerating || imagePreviews.length === 0) ? 'not-allowed' : 'pointer'
+                  }}
+                  title={imagePreviews.length === 0 ? "Upload a saree photo first to enable AI writing" : "Auto-generate Saree name and details"}
+                >
+                  {aiGenerating ? (
+                    <>
+                      <div style={{ border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', width: '14px', height: '14px', animation: 'spin 1s linear infinite', marginRight: '8px' }}></div>
+                      Gemini writing description...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} style={{ marginRight: '6px' }} />
+                      Auto-Generate Title & Description (AI)
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
