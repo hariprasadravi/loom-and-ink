@@ -33,31 +33,36 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
 
-  // Helper utility to convert a local file dataURL or absolute HTTP URL to raw base64 data
+  // Helper utility to convert a local file dataURL or absolute/relative HTTP URL to raw base64 data
   const getBase64FromUrlOrData = async (url) => {
     if (url.startsWith('data:')) {
       const parts = url.split(';base64,');
       const mimeType = parts[0].split(':')[1];
       const base64Data = parts[1];
       return { mimeType, base64Data };
-    } else if (url.startsWith('http')) {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result;
-          const parts = result.split(';base64,');
-          resolve({
-            mimeType: blob.type || 'image/jpeg',
-            base64Data: parts[1]
-          });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
     }
-    throw new Error('Unsupported image format');
+
+    // Convert relative local image paths to full absolute URLs for local fetch compatibility
+    let fetchUrl = url;
+    if (!url.startsWith('http')) {
+      fetchUrl = window.location.origin + getImagePath(url);
+    }
+
+    const response = await fetch(fetchUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        const parts = result.split(';base64,');
+        resolve({
+          mimeType: blob.type || 'image/jpeg',
+          base64Data: parts[1]
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   };
 
   const handleAutoGenerate = async () => {
