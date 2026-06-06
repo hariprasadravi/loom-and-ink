@@ -58,7 +58,7 @@ function SareeCardImage({ saree, onViewSaree }) {
   );
 }
 
-export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835" }) {
+export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835", settings }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeType, setActiveType] = useState('all');
@@ -87,7 +87,11 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
   });
 
   const getWhatsAppLink = (saree) => {
-    const text = `Hi, I am interested in Item Code: ${saree.code} - ${saree.title}. Is this available? I saw it on your showroom website.`;
+    let text = `Hi, I am interested in Item Code: ${saree.code} - ${saree.title}. Is this available? I saw it on your showroom website.`;
+    const referral = sessionStorage.getItem('pattupol-ref');
+    if (referral) {
+      text += ` (Referred by: ${referral})`;
+    }
     return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
   };
 
@@ -112,48 +116,15 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
             >
               All Items
             </button>
-            <button 
-              className={`filter-chip ${activeType === 'kalamkari' ? 'active' : ''}`}
-              onClick={() => setActiveType('kalamkari')}
-            >
-              Kalamkari
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'silk-cotton' ? 'active' : ''}`}
-              onClick={() => setActiveType('silk-cotton')}
-            >
-              Silk Cotton
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'soft-silk' ? 'active' : ''}`}
-              onClick={() => setActiveType('soft-silk')}
-            >
-              Soft Silks
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'semi-silk-cotton' ? 'active' : ''}`}
-              onClick={() => setActiveType('semi-silk-cotton')}
-            >
-              Semi Silk Cottons
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'summer-cotton' ? 'active' : ''}`}
-              onClick={() => setActiveType('summer-cotton')}
-            >
-              Summer Cottons
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'traditional-cotton' ? 'active' : ''}`}
-              onClick={() => setActiveType('traditional-cotton')}
-            >
-              Traditional Cottons
-            </button>
-            <button 
-              className={`filter-chip ${activeType === 'nighties' ? 'active' : ''}`}
-              onClick={() => setActiveType('nighties')}
-            >
-              Nighties
-            </button>
+            {settings.categories.map((cat) => (
+              <button 
+                key={cat.id}
+                className={`filter-chip ${activeType === cat.id ? 'active' : ''}`}
+                onClick={() => setActiveType(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
 
           {/* Status Filter */}
@@ -245,7 +216,7 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                       {discountPct && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '700', color: 'var(--accent-gold)' }}>
                           <Sparkles size={10} />
-                          ஆடித்தள்ளுபடி • {discountPct}% Off
+                          {settings.saleBadgeTamil} • {discountPct}% Off
                         </div>
                       )}
                     </div>

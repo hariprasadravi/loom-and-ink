@@ -119,7 +119,7 @@ test.describe('Pattupol பட்டுப்போல் Showroom E2E Tests', (
   });
 
   test('should load the admin login form', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?nirvahi');
     
     // Click on the "Admin" tab button in the header nav
     const adminTab = page.locator('button:has-text("Admin")');

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Star, Sparkles } from 'lucide-react';
+import { Plus, Trash2, LogOut, Upload, Image as ImageIcon, Edit2, Check, ArrowLeft, Mail, KeyRound, Star, Sparkles, Settings } from 'lucide-react';
 import { getImagePath } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 import { removeBackground } from '@imgly/background-removal';
 
-export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree, needsMigration, onMigrationComplete }) {
+export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggleSold, onDeleteSaree, needsMigration, onMigrationComplete, settings, onSaveSettings }) {
   // Real Supabase Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
@@ -34,6 +34,104 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   });
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
+
+  // Dynamic Store Settings states
+  const [showStoreSettings, setShowStoreSettings] = useState(false);
+  const [saleBadgeTamil, setSaleBadgeTamil] = useState(settings?.saleBadgeTamil || 'ஆடித்தள்ளுபடி');
+  const [saleBadgeEnglish, setSaleBadgeEnglish] = useState(settings?.saleBadgeEnglish || 'Aadi Discount');
+  const [captchaEnabled, setCaptchaEnabled] = useState(settings?.captchaEnabled || false);
+  const [captchaSiteKey, setCaptchaSiteKey] = useState(settings?.captchaSiteKey || '');
+  const [customCategories, setCustomCategories] = useState(settings?.categories || []);
+  const [affiliates, setAffiliates] = useState(settings?.affiliates || []);
+  const [newCategoryLabel, setNewCategoryLabel] = useState('');
+  const [newCategoryFullName, setNewCategoryFullName] = useState('');
+  const [newAffiliateName, setNewAffiliateName] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+
+  // Sync settings when settings prop updates
+  useEffect(() => {
+    if (settings) {
+      setSaleBadgeTamil(settings.saleBadgeTamil);
+      setSaleBadgeEnglish(settings.saleBadgeEnglish);
+      setCaptchaEnabled(settings.captchaEnabled);
+      setCaptchaSiteKey(settings.captchaSiteKey);
+      setCustomCategories(settings.categories);
+      setAffiliates(settings.affiliates);
+    }
+  }, [settings]);
+
+  // Handle Cloudflare Turnstile initialization
+  useEffect(() => {
+    if (!isAuthenticated && settings?.captchaEnabled && settings?.captchaSiteKey) {
+      const timer = setTimeout(() => {
+        const container = document.getElementById('turnstile-container');
+        if (container && window.turnstile) {
+          try {
+            window.turnstile.render('#turnstile-container', {
+              sitekey: settings.captchaSiteKey,
+              callback: (token) => setCaptchaToken(token),
+              'expired-callback': () => setCaptchaToken(''),
+              'error-callback': () => setCaptchaToken('')
+            });
+          } catch (err) {
+            console.error('Error rendering Turnstile:', err);
+          }
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, settings?.captchaEnabled, settings?.captchaSiteKey]);
+
+  const handleAddCategory = () => {
+    if (!newCategoryLabel.trim()) {
+      alert('Please enter a category name.');
+      return;
+    }
+    const id = newCategoryLabel.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    if (customCategories.some(cat => cat.id === id)) {
+      alert('A category with this name already exists.');
+      return;
+    }
+    const newCat = {
+      id,
+      label: newCategoryLabel.trim(),
+      fullName: newCategoryFullName.trim() || newCategoryLabel.trim()
+    };
+    setCustomCategories([...customCategories, newCat]);
+    setNewCategoryLabel('');
+    setNewCategoryFullName('');
+  };
+
+  const handleDeleteCategory = (catId) => {
+    if (customCategories.length <= 1) {
+      alert('You must keep at least one category.');
+      return;
+    }
+    if (confirm(`Are you sure you want to delete the category "${customCategories.find(c => c.id === catId)?.label}"? This will not delete any sarees, but they will no longer be filterable by this category.`)) {
+      setCustomCategories(customCategories.filter(cat => cat.id !== catId));
+    }
+  };
+
+  const handleSaveStoreSettings = async () => {
+    try {
+      setSavingSettings(true);
+      await onSaveSettings({
+        saleBadgeTamil,
+        saleBadgeEnglish,
+        captchaEnabled,
+        captchaSiteKey,
+        categories: customCategories,
+        affiliates
+      });
+      alert('Store settings saved successfully!');
+      setShowStoreSettings(false);
+    } catch (err) {
+      alert('Error saving store settings: ' + (err.message || err));
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Helper utility to convert a local file dataURL or absolute/relative HTTP URL to raw base64 data
   const getBase64FromUrlOrData = async (url) => {
@@ -312,10 +410,21 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       return;
     }
 
+    if (settings?.captchaEnabled && settings?.captchaSiteKey && !captchaToken) {
+      setLoginError('Please solve the Turnstile CAPTCHA first.');
+      return;
+    }
+
     try {
       setLoginLoading(true);
       setLoginError('');
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password,
+        options: {
+          captchaToken: settings?.captchaEnabled ? captchaToken : undefined
+        }
+      });
       if (error) throw error;
     } catch (err) {
       setLoginError(err.message || 'Error signing in. Please check your credentials.');
@@ -521,7 +630,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     setEditingSaree(null);
     setTitle('');
     setCode('');
-    setType('kalamkari');
+    setType(settings.categories[0]?.id || 'kalamkari');
     setDescription('');
     setPrice('5,000');
     setOriginalPrice('');
@@ -642,7 +751,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       // Reset Form
       setTitle('');
       setCode('');
-      setType('kalamkari');
+      setType(settings.categories[0]?.id || 'kalamkari');
       setDescription('');
       setPrice('5,000');
       setOriginalPrice('');
@@ -698,6 +807,9 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
               required
             />
           </div>
+          {settings?.captchaEnabled && settings?.captchaSiteKey && (
+            <div id="turnstile-container" style={{ margin: '16px 0 20px', display: 'flex', justifyContent: 'center' }}></div>
+          )}
           {loginError && <p style={{ color: 'var(--accent-terracotta)', fontSize: '13px', marginBottom: '16px', textAlign: 'center', lineHeight: '1.4' }}>{loginError}</p>}
           <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loginLoading}>
             {loginLoading ? 'Authenticating...' : 'Secure Log In'}
@@ -715,7 +827,17 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
           <h1 style={{ color: 'var(--primary-indigo)', fontSize: '36px' }}>Catalog Manager</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Add new stock or toggle "Sold!" tags instantly.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button 
+            type="button" 
+            className="btn-secondary" 
+            onClick={() => setShowStoreSettings(!showStoreSettings)} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border-color)' }}
+            title="Configure Sale Text & Custom Categories"
+          >
+            <Settings size={16} style={{ color: 'var(--primary-indigo)' }} />
+            Store Settings
+          </button>
           <button 
             type="button" 
             className="btn-secondary" 
@@ -794,6 +916,248 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                 No Key configured
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Store Customization Settings Panel */}
+      {showStoreSettings && (
+        <div style={{ 
+          backgroundColor: '#fffaf0', 
+          border: '1px solid var(--border-color)', 
+          borderRadius: '12px', 
+          padding: '24px', 
+          marginBottom: '40px', 
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)' 
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Settings size={20} style={{ color: 'var(--primary-indigo)' }} />
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)' }}>
+                Store & Boutique Settings
+              </h3>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setShowStoreSettings(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--text-muted)', fontWeight: 'bold' }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+            
+            {/* Section 1: Seasonal Sale Customization */}
+            <div>
+              <h4 style={{ margin: '0 0 12px', color: 'var(--accent-terracotta)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
+                1. Seasonal Sale Badge Text
+              </h4>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label">Tamil Badge Text</label>
+                <input 
+                  type="text" 
+                  value={saleBadgeTamil} 
+                  onChange={(e) => setSaleBadgeTamil(e.target.value)} 
+                  className="form-input" 
+                  placeholder="e.g. ஆடித்தள்ளuபடி" 
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">English Translation (Modal Subtitle)</label>
+                <input 
+                  type="text" 
+                  value={saleBadgeEnglish} 
+                  onChange={(e) => setSaleBadgeEnglish(e.target.value)} 
+                  className="form-input" 
+                  placeholder="e.g. Aadi Discount" 
+                />
+              </div>
+            </div>
+
+            {/* Section 2: Captcha Bot Security */}
+            <div>
+              <h4 style={{ margin: '0 0 12px', color: 'var(--accent-terracotta)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
+                2. Bot CAPTCHA Security (Cloudflare Turnstile)
+              </h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <input 
+                  type="checkbox" 
+                  id="captcha-toggle"
+                  checked={captchaEnabled}
+                  onChange={(e) => setCaptchaEnabled(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="captcha-toggle" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-dark)', cursor: 'pointer' }}>
+                  Enable Cloudflare Turnstile protection
+                </label>
+              </div>
+              <div className="form-group" style={{ display: captchaEnabled ? 'block' : 'none' }}>
+                <label className="form-label">Cloudflare Turnstile Site Key</label>
+                <input 
+                  type="text" 
+                  value={captchaSiteKey} 
+                  onChange={(e) => setCaptchaSiteKey(e.target.value)} 
+                  className="form-input" 
+                  placeholder="e.g. 0x4AAAAAAAB..." 
+                />
+                <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  Ensure you also copy/paste your corresponding Turnstile **Secret Key** into the Supabase Dashboard provider settings.
+                </p>
+              </div>
+            </div>
+
+            {/* Section 3: Categories Manager */}
+            <div>
+              <h4 style={{ margin: '0 0 12px', color: 'var(--accent-terracotta)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
+                3. Category & Filter Tag Manager
+              </h4>
+              <div style={{ maxHeight: '140px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px', backgroundColor: '#fff', marginBottom: '12px' }}>
+                {customCategories.map((cat) => (
+                  <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderBottom: '1px solid #f7f5f0', fontSize: '12px' }}>
+                    <span style={{ fontWeight: '500' }}>{cat.label} <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>({cat.id})</span></span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      style={{ background: 'none', border: 'none', color: '#c53030', cursor: 'pointer', padding: '2px' }}
+                      title="Delete category"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', backgroundColor: '#fff' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-dark)' }}>Add New Tag:</span>
+                <input 
+                  type="text" 
+                  value={newCategoryLabel} 
+                  onChange={(e) => setNewCategoryLabel(e.target.value)} 
+                  className="form-input" 
+                  placeholder="Tag label (e.g. Tussar Silk)" 
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                />
+                <input 
+                  type="text" 
+                  value={newCategoryFullName} 
+                  onChange={(e) => setNewCategoryFullName(e.target.value)} 
+                  className="form-input" 
+                  placeholder="Descriptive name (e.g. Tussar Silk (Handloom))" 
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                />
+                <button 
+                  type="button" 
+                  onClick={handleAddCategory} 
+                  className="btn-secondary" 
+                  style={{ padding: '6px', fontSize: '12px', justifyContent: 'center' }}
+                >
+                  <Plus size={14} style={{ marginRight: '4px' }} /> Add Category
+                </button>
+              </div>
+            </div>
+
+            {/* Section 4: Affiliate Referral Manager */}
+            <div>
+              <h4 style={{ margin: '0 0 12px', color: 'var(--accent-terracotta)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
+                4. Affiliate Link Manager
+              </h4>
+              <div style={{ maxHeight: '140px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px', backgroundColor: '#fff', marginBottom: '12px' }}>
+                {affiliates.length === 0 ? (
+                  <p style={{ margin: '8px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>No active affiliates yet</p>
+                ) : (
+                  affiliates.map((aff) => {
+                    const generatedLink = `${window.location.origin}${window.location.pathname}?ref=${aff}`;
+                    return (
+                      <div key={aff} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderBottom: '1px solid #f7f5f0', fontSize: '12px' }}>
+                        <span style={{ fontWeight: '500' }}>{aff}</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              navigator.clipboard.writeText(generatedLink);
+                              alert(`Referral link for ${aff} copied to clipboard:\n${generatedLink}`);
+                            }}
+                            style={{ background: 'none', border: 'none', color: 'var(--primary-indigo)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                          >
+                            Copy Link
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              if (confirm(`Remove affiliate "${aff}"?`)) {
+                                setAffiliates(affiliates.filter(a => a !== aff));
+                              }
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#c53030', cursor: 'pointer', padding: '2px' }}
+                            title="Remove affiliate"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  value={newAffiliateName} 
+                  onChange={(e) => setNewAffiliateName(e.target.value)} 
+                  className="form-input" 
+                  placeholder="Affiliate Name (e.g. Priya)" 
+                  style={{ padding: '8px 12px', fontSize: '12px' }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (!newAffiliateName.trim()) {
+                      alert('Please enter an affiliate name.');
+                      return;
+                    }
+                    const code = newAffiliateName.trim().replace(/[^a-zA-Z0-9-_]+/g, '');
+                    if (affiliates.includes(code)) {
+                      alert('This affiliate code already exists.');
+                      return;
+                    }
+                    setAffiliates([...affiliates, code]);
+                    setNewAffiliateName('');
+                  }} 
+                  className="btn-secondary" 
+                  style={{ padding: '8px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                >
+                  Create Code
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={() => {
+                setShowStoreSettings(false);
+                setSaleBadgeTamil(settings?.saleBadgeTamil);
+                setSaleBadgeEnglish(settings?.saleBadgeEnglish);
+                setCaptchaEnabled(settings?.captchaEnabled);
+                setCaptchaSiteKey(settings?.captchaSiteKey);
+                setCustomCategories(settings?.categories);
+                setAffiliates(settings?.affiliates);
+              }}
+              disabled={savingSettings}
+            >
+              Discard Changes
+            </button>
+            <button 
+              type="button" 
+              className="btn-primary" 
+              onClick={handleSaveStoreSettings}
+              disabled={savingSettings}
+            >
+              {savingSettings ? 'Saving Settings...' : 'Save Settings to Database'}
+            </button>
           </div>
         </div>
       )}
@@ -933,13 +1297,9 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                 onChange={(e) => setType(e.target.value)}
                 className="form-select"
               >
-                <option value="kalamkari">Kalamkari (Hand-Painted)</option>
-                <option value="silk-cotton">Silk Cotton (Handloom)</option>
-                <option value="soft-silk">Soft Silks</option>
-                <option value="semi-silk-cotton">Semi Silk Cottons</option>
-                <option value="summer-cotton">Summer Cottons</option>
-                <option value="traditional-cotton">Traditional Cottons (Chettinad/Narayanapet/Kanchi)</option>
-                <option value="nighties">Nighties</option>
+                {settings.categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.fullName || cat.label}</option>
+                ))}
               </select>
             </div>
 

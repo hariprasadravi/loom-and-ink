@@ -13,16 +13,108 @@ function App() {
   const [activeImgIndex, setActiveImgIndex] = useState(0); // Active image index in the lightbox carousel
   const [dbError, setDbError] = useState(null); // Database error tracking
   const [needsMigration, setNeedsMigration] = useState(false); // Tracks if old Base64 records require CDN migration
+  const [isAdminModeAllowed, setIsAdminModeAllowed] = useState(sessionStorage.getItem('adminModeAllowed') === 'true');
+  const [settings, setSettings] = useState({
+    saleBadgeTamil: 'ஆடித்தள்ளுபடி',
+    saleBadgeEnglish: 'Aadi Discount',
+    captchaEnabled: false,
+    captchaSiteKey: '',
+    categories: [
+      { id: 'kalamkari', label: 'Kalamkari', fullName: 'Kalamkari (Hand-Painted)' },
+      { id: 'silk-cotton', label: 'Silk Cotton', fullName: 'Silk Cotton (Handloom)' },
+      { id: 'soft-silk', label: 'Soft Silks', fullName: 'Soft Silks' },
+      { id: 'semi-silk-cotton', label: 'Semi Silk Cottons', fullName: 'Semi Silk Cottons' },
+      { id: 'summer-cotton', label: 'Summer Cottons', fullName: 'Summer Cottons' },
+      { id: 'traditional-cotton', label: 'Traditional Cottons', fullName: 'Traditional Cottons (Chettinad/Narayanapet/Kanchi)' },
+      { id: 'nighties', label: 'Nighties', fullName: 'Nighties' }
+    ],
+    affiliates: []
+  });
 
-  // Fetch sarees from Supabase on mount
+  // URL parsing for secret admin key (?nirvahi) and affiliate referral (?ref=...)
   useEffect(() => {
-    const fetchSarees = async () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    let urlChanged = false;
+
+    // Check admin secret
+    if (searchParams.has('nirvahi')) {
+      setIsAdminModeAllowed(true);
+      sessionStorage.setItem('adminModeAllowed', 'true');
+      setActiveTab('admin');
+      searchParams.delete('nirvahi');
+      urlChanged = true;
+    }
+
+    // Check affiliate code
+    if (searchParams.has('ref')) {
+      const refVal = searchParams.get('ref');
+      if (refVal) {
+        sessionStorage.setItem('pattupol-ref', refVal);
+      }
+      searchParams.delete('ref');
+      urlChanged = true;
+    }
+
+    // Clean up address bar query params silently
+    if (urlChanged) {
+      const newQuery = searchParams.toString();
+      const newUrl = window.location.pathname + (newQuery ? '?' + newQuery : '') + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
+
+  // Fetch sarees and settings from Supabase on mount
+  useEffect(() => {
+    const fetchSareesAndSettings = async () => {
       try {
         setLoading(true);
         setDbError(null);
         setNeedsMigration(false);
+
+        // 1. Fetch settings from settings table
+        try {
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('settings')
+            .select('*');
+
+          if (!settingsError && settingsData) {
+            const loadedSettings = {
+              saleBadgeTamil: 'ஆடித்தள்ளுபடி',
+              saleBadgeEnglish: 'Aadi Discount',
+              captchaEnabled: false,
+              captchaSiteKey: '',
+              categories: [
+                { id: 'kalamkari', label: 'Kalamkari', fullName: 'Kalamkari (Hand-Painted)' },
+                { id: 'silk-cotton', label: 'Silk Cotton', fullName: 'Silk Cotton (Handloom)' },
+                { id: 'soft-silk', label: 'Soft Silks', fullName: 'Soft Silks' },
+                { id: 'semi-silk-cotton', label: 'Semi Silk Cottons', fullName: 'Semi Silk Cottons' },
+                { id: 'summer-cotton', label: 'Summer Cottons', fullName: 'Summer Cottons' },
+                { id: 'traditional-cotton', label: 'Traditional Cottons', fullName: 'Traditional Cottons (Chettinad/Narayanapet/Kanchi)' },
+                { id: 'nighties', label: 'Nighties', fullName: 'Nighties' }
+              ],
+              affiliates: []
+            };
+
+            settingsData.forEach(item => {
+              if (item.key === 'sale_badge') {
+                loadedSettings.saleBadgeTamil = item.value?.tamil || 'ஆடித்தள்ளுபடி';
+                loadedSettings.saleBadgeEnglish = item.value?.english || 'Aadi Discount';
+              } else if (item.key === 'categories') {
+                loadedSettings.categories = item.value || loadedSettings.categories;
+              } else if (item.key === 'captcha_settings') {
+                loadedSettings.captchaEnabled = !!item.value?.enabled;
+                loadedSettings.captchaSiteKey = item.value?.site_key || '';
+              } else if (item.key === 'affiliates') {
+                loadedSettings.affiliates = item.value || [];
+              }
+            });
+            setSettings(loadedSettings);
+          }
+        } catch (settingsErr) {
+          console.warn('Failed to load custom settings (falling back to defaults):', settingsErr);
+        }
         
-        // 1. Try to fetch details including the cover image URL
+        // 2. Fetch sarees
         const { data, error } = await supabase
           .from('sarees')
           .select('id, code, title, type, description, price, original_price, draft, image, sold, created_at')
@@ -31,15 +123,12 @@ function App() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // Check if any cover image is still stored in Base64 format
           const hasBase64Image = data.some(s => s.image && s.image.startsWith('data:'));
           if (hasBase64Image) {
-            console.log('Found Base64 cover images. Page loaded but migration is recommended.');
             setNeedsMigration(true);
           }
           setSarees(data);
         } else {
-          // DATABASE SEEDER: If database is brand-new and empty, seed it with the 18 sarees!
           console.log('Database is empty. Seeding initial 18 sarees...');
           const { error: seedError } = await supabase
             .from('sarees')
@@ -49,9 +138,8 @@ function App() {
           setSarees(initialSarees);
         }
       } catch (err) {
-        console.warn('Initial fetch timed out or failed due to heavy Base64 strings. Attempting lightweight text-only query...', err);
+        console.warn('Initial fetch timed out or failed. Attempting lightweight text-only query...', err);
         
-        // 2. Fallback query (excludes all image columns entirely) to avoid Postgres timeouts
         try {
           const { data: metadata, error: fallbackError } = await supabase
             .from('sarees')
@@ -61,7 +149,6 @@ function App() {
           if (fallbackError) throw fallbackError;
 
           if (metadata && metadata.length > 0) {
-            // Map empty strings for media placeholders; they will load lazily per card on-demand
             const mappedMetadata = metadata.map(s => ({
               ...s,
               image: '',
@@ -70,7 +157,6 @@ function App() {
             setSarees(mappedMetadata);
             setNeedsMigration(true);
           } else {
-            console.log('Database is empty during fallback. Seeding initial sarees...');
             const { error: seedError } = await supabase
               .from('sarees')
               .insert(initialSarees);
@@ -87,7 +173,7 @@ function App() {
       }
     };
 
-    fetchSarees();
+    fetchSareesAndSettings();
   }, []);
 
   const handleAddSaree = async (newSaree) => {
@@ -170,6 +256,52 @@ function App() {
     }
   };
 
+  const handleSaveSettings = async (updatedSettings) => {
+    try {
+      // 1. Save sale badge settings
+      const { error: saleBadgeError } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'sale_badge',
+          value: { tamil: updatedSettings.saleBadgeTamil, english: updatedSettings.saleBadgeEnglish }
+        });
+      if (saleBadgeError) throw saleBadgeError;
+
+      // 2. Save categories settings
+      const { error: categoriesError } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'categories',
+          value: updatedSettings.categories
+        });
+      if (categoriesError) throw categoriesError;
+
+      // 3. Save captcha settings
+      const { error: captchaError } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'captcha_settings',
+          value: { enabled: updatedSettings.captchaEnabled, site_key: updatedSettings.captchaSiteKey }
+        });
+      if (captchaError) throw captchaError;
+
+      // 4. Save affiliates settings
+      const { error: affiliatesError } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'affiliates',
+          value: updatedSettings.affiliates
+        });
+      if (affiliatesError) throw affiliatesError;
+
+      // 5. Update local settings state
+      setSettings(updatedSettings);
+    } catch (err) {
+      console.error('Error saving settings to database:', err);
+      throw err;
+    }
+  };
+
   const handleViewSaree = async (saree) => {
     setSelectedSaree(saree);
     setActiveImgIndex(0);
@@ -218,12 +350,14 @@ function App() {
             >
               Showroom Catalog
             </button>
-            <button 
-              className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
-              onClick={() => setActiveTab('admin')}
-            >
-              Admin
-            </button>
+            {isAdminModeAllowed && (
+              <button 
+                className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+                onClick={() => setActiveTab('admin')}
+              >
+                Admin
+              </button>
+            )}
           </nav>
         </div>
       </header>
@@ -243,38 +377,39 @@ function App() {
             `}</style>
           </div>
         ) : dbError ? (
-          // Elegant database diagnostic panel!
-          <div className="container" style={{ padding: '60px 20px', maxWidth: '800px' }}>
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '40px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', border: '1px solid #ebdcb9' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <span style={{ fontSize: '32px' }}>⚙️</span>
-                <div>
-                  <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--accent-terracotta)', margin: '0' }}>Database Diagnostics</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>Supabase connection status report</p>
+          isAdminModeAllowed ? (
+            // Detailed developer diagnostic panel
+            <div className="container" style={{ padding: '60px 20px', maxWidth: '800px' }}>
+              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '40px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', border: '1px solid #ebdcb9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                  <span style={{ fontSize: '32px' }}>⚙️</span>
+                  <div>
+                    <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--accent-terracotta)', margin: '0' }}>Database Diagnostics</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>Supabase connection status report</p>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ backgroundColor: '#fffaf0', borderLeft: '4px solid var(--accent-terracotta)', padding: '16px', borderRadius: '4px', marginBottom: '32px' }}>
-                <strong style={{ color: 'var(--text-dark)', fontSize: '14px' }}>Connection Error Details:</strong>
-                <p style={{ fontFamily: 'monospace', color: '#c53030', margin: '8px 0 0', fontSize: '13px', wordBreak: 'break-all' }}>
-                  {dbError.message || JSON.stringify(dbError)}
+                <div style={{ backgroundColor: '#fffaf0', borderLeft: '4px solid var(--accent-terracotta)', padding: '16px', borderRadius: '4px', marginBottom: '32px' }}>
+                  <strong style={{ color: 'var(--text-dark)', fontSize: '14px' }}>Connection Error Details:</strong>
+                  <p style={{ fontFamily: 'monospace', color: '#c53030', margin: '8px 0 0', fontSize: '13px', wordBreak: 'break-all' }}>
+                    {dbError.message || JSON.stringify(dbError)}
+                  </p>
+                </div>
+
+                <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)', fontSize: '18px', marginBottom: '12px' }}>How to Resolve This in 1 Minute</h3>
+                <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                  This error typically occurs if the <code style={{ backgroundColor: '#f3ebdf', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px' }}>sarees</code> table is missing or if Supabase **Row-Level Security (RLS)** is preventing access without active policies.
                 </p>
-              </div>
 
-              <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)', fontSize: '18px', marginBottom: '12px' }}>How to Resolve This in 1 Minute</h3>
-              <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                This error typically occurs if the <code style={{ backgroundColor: '#f3ebdf', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px' }}>sarees</code> table is missing or if Supabase **Row-Level Security (RLS)** is preventing access without active policies.
-              </p>
+                <ol style={{ fontSize: '14px', lineHeight: '1.8', color: 'var(--text-dark)', paddingLeft: '20px', marginBottom: '32px' }}>
+                  <li>Log in to your <strong><a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-indigo)', textDecoration: 'underline' }}>Supabase Dashboard</a></strong>.</li>
+                  <li>Select your project <strong>wyxoffulgvtnzqpzbkle</strong>.</li>
+                  <li>Go to the <strong>SQL Editor</strong> tab on the left navigation bar.</li>
+                  <li>Click <strong>New Query</strong>, paste the SQL script below, and click <strong>Run</strong>:</li>
+                </ol>
 
-              <ol style={{ fontSize: '14px', lineHeight: '1.8', color: 'var(--text-dark)', paddingLeft: '20px', marginBottom: '32px' }}>
-                <li>Log in to your <strong><a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-indigo)', textDecoration: 'underline' }}>Supabase Dashboard</a></strong>.</li>
-                <li>Select your project <strong>wyxoffulgvtnzqpzbkle</strong>.</li>
-                <li>Go to the <strong>SQL Editor</strong> tab on the left navigation bar.</li>
-                <li>Click <strong>New Query</strong>, paste the SQL script below, and click <strong>Run</strong>:</li>
-              </ol>
-
-              <div style={{ position: 'relative', marginBottom: '24px' }}>
-                <pre style={{ backgroundColor: '#2d3748', color: '#edf2f7', padding: '20px', borderRadius: '8px', overflowX: 'auto', fontSize: '13px', fontFamily: 'monospace', lineHeight: '1.5', maxHeight: '250px' }}>
+                <div style={{ position: 'relative', marginBottom: '24px' }}>
+                  <pre style={{ backgroundColor: '#2d3748', color: '#edf2f7', padding: '20px', borderRadius: '8px', overflowX: 'auto', fontSize: '13px', fontFamily: 'monospace', lineHeight: '1.5', maxHeight: '250px' }}>
 {`-- 1. Create sarees table (if missing)
 create table if not exists public.sarees (
   id text primary key,
@@ -303,34 +438,79 @@ create policy "Allow admin full access"
   to authenticated 
   using (true) 
   with check (true);`}
-                </pre>
-              </div>
+                  </pre>
+                </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-                <button 
-                  onClick={() => window.location.reload()} 
-                  className="btn-primary"
-                >
-                  Reload Showroom
-                </button>
-                <button 
-                  onClick={() => setDbError(null)} 
-                  className="btn-secondary"
-                  style={{ border: 'none', background: 'none', textDecoration: 'underline', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  Proceed to Site Anyway
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="btn-primary"
+                  >
+                    Reload Showroom
+                  </button>
+                  <button 
+                    onClick={() => setDbError(null)} 
+                    className="btn-secondary"
+                    style={{ border: 'none', background: 'none', textDecoration: 'underline', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  >
+                    Proceed to Site Anyway
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            // Premium, secure customer-facing fallback page
+            <div className="container" style={{ padding: '80px 20px', maxWidth: '600px', textAlign: 'center' }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', padding: '48px 32px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(153, 27, 27, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-terracotta)', fontSize: '32px' }}>
+                  🌸
+                </div>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--accent-terracotta)', fontSize: '28px', margin: '0 0 12px' }}>Showroom Refresh in Progress</h2>
+                  <p style={{ color: 'var(--text-dark)', fontSize: '15px', lineHeight: '1.6', margin: '0' }}>
+                    Our online boutique catalog is currently updating its connection to present our latest curated handloom collection.
+                  </p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', marginTop: '12px' }}>
+                    Please try refreshing the page in a few moments, or reach out to us directly on WhatsApp to view our current stock.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px', marginTop: '12px' }}>
+                  <a 
+                    href={`https://wa.me/919840709835?text=${(() => {
+                      let text = "Hello Pattupol! I'm visiting your website and would love to enquire about your latest saree catalog.";
+                      const referral = sessionStorage.getItem('pattupol-ref');
+                      if (referral) {
+                        text += ` (Referred by: ${referral})`;
+                      }
+                      return encodeURIComponent(text);
+                    })()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary"
+                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', textDecoration: 'none', width: '100%', padding: '12px', boxSizing: 'border-box' }}
+                  >
+                    Enquire on WhatsApp
+                  </a>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="btn-secondary"
+                    style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
+                  >
+                    Reload Page
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         ) : activeTab === 'showroom' ? (
           <Showroom 
             sarees={sarees} 
             onViewSaree={handleViewSaree}
             whatsappNumber="919840709835"
             needsMigration={needsMigration}
+            settings={settings}
           />
-        ) : (
+        ) : isAdminModeAllowed && activeTab === 'admin' ? (
           <AdminPanel 
             sarees={sarees}
             onAddSaree={handleAddSaree}
@@ -339,6 +519,16 @@ create policy "Allow admin full access"
             onDeleteSaree={handleDeleteSaree}
             needsMigration={needsMigration}
             onMigrationComplete={() => setNeedsMigration(false)}
+            settings={settings}
+            onSaveSettings={handleSaveSettings}
+          />
+        ) : (
+          <Showroom 
+            sarees={sarees} 
+            onViewSaree={handleViewSaree}
+            whatsappNumber="919840709835"
+            needsMigration={needsMigration}
+            settings={settings}
           />
         )}
       </main>
@@ -485,7 +675,7 @@ create policy "Allow admin full access"
                     {discountPct && (
                       <div style={{ display: 'flex', alignSelf: 'flex-end', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700', color: 'var(--accent-gold)' }}>
                         <Sparkles size={11} />
-                        ஆடித்தள்ளுபடி (Aadi Discount) • {discountPct}% Off
+                        {settings.saleBadgeTamil} ({settings.saleBadgeEnglish}) • {discountPct}% Off
                       </div>
                     )}
                   </div>
