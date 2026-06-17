@@ -1,21 +1,21 @@
 /* Loom & Ink - Global CSS Stylesheet */
 
 :root {
-  color-scheme: light; /* Strictly enforce light mode, preventing browsers from forcing navy-blue dark mode inversions */
+  color-scheme: dark; /* Strictly enforce dark mode for premium aesthetics */
   
   /* Artisanal Color System */
-  --primary-indigo: #990000;      /* USC Cardinal Red */
-  --primary-terracotta: #ab47bc;  /* Deep terracotta / traditional red-brown */
-  --accent-terracotta: #990000;   /* Cardinal Red accent */
-  --accent-mustard: #d6a218;      /* USC Gold accent */
-  --bg-creme: #e6d6c3;            /* Rich warm raw silk / Tussar linen shade, optimized for desktop and mobile */
-  --bg-card: #ffffff;
-  --text-dark: #2c2825;           /* Soft charcoal, avoiding pure black */
-  --text-muted: #6e655f;          /* Earthy muted text */
-  --border-light: #eae5de;
-  --accent-gold: #d6a218;         /* USC Gold accent */
-  --shadow-premium: 0 10px 30px rgba(44, 40, 37, 0.06), 0 1px 3px rgba(44, 40, 37, 0.02);
-  --shadow-hover: 0 20px 40px rgba(44, 40, 37, 0.12), 0 1px 8px rgba(44, 40, 37, 0.04);
+  --primary-indigo: #b30000;      /* Rich USC Cardinal Red */
+  --primary-terracotta: #d35400;  /* Traditional terracotta / brick red */
+  --accent-terracotta: #e53e3e;   /* Cardinal Red accent */
+  --accent-mustard: #ffd043;      /* USC Gold accent */
+  --bg-creme: #12100f;            /* Deep warm charcoal/black, resembling dark raw silk */
+  --bg-card: #1c1917;             /* Soft dark card background */
+  --text-dark: #f4f0ec;           /* Soft warm off-white, avoiding pure white */
+  --text-muted: #a39891;          /* Earthy muted light grey text */
+  --border-light: #2c2724;        /* Dark subtle border */
+  --accent-gold: #ffd043;         /* Gold accent */
+  --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.7), 0 1px 8px rgba(0, 0, 0, 0.4);
   
   /* Typography */
   --font-serif: 'Prata', serif;                     /* Elegant, organic teardrop serif heading font */
@@ -35,12 +35,12 @@ body {
   background-color: var(--bg-creme);
   /* 
     Layer 1 & 2: Elegant handloom Tussar raw silk fabric cross-hatch texture
-    Layer 3: Traditional hand-embroidered 'Booti' (paisley motif) threadwork outline pattern in Cardinal Red
+    Layer 3: Traditional hand-embroidered 'Booti' (paisley motif) threadwork outline pattern in Gold Zari
   */
   background-image: 
-    linear-gradient(90deg, rgba(44, 40, 37, 0.015) 50%, transparent 50%),
-    linear-gradient(rgba(44, 40, 37, 0.015) 50%, transparent 50%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23990000' stroke-opacity='0.16' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23990000' fill-opacity='0.2'/%3E%3C/svg%3E");
+    linear-gradient(90deg, rgba(244, 240, 236, 0.012) 50%, transparent 50%),
+    linear-gradient(rgba(244, 240, 236, 0.012) 50%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80,40 C70,60 60,70 60,90 C60,105 70,115 80,115 C90,115 100,105 100,90 C100,70 90,60 80,40 Z M80,40 C80,60 76,70 68,85 M80,60 C85,70 92,80 94,90 M80,115 L80,40' fill='none' stroke='%23ffd043' stroke-opacity='0.05' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='%23ffd043' fill-opacity='0.08'/%3E%3C/svg%3E");
   background-size: 3px 3px, 3px 3px, 160px 160px;
   min-height: 100vh;
 }
@@ -84,7 +84,7 @@ button {
 .header-nav {
   position: sticky;
   top: 0;
-  background: rgba(230, 214, 195, 0.85);
+  background: rgba(18, 16, 15, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-light);
@@ -166,9 +166,9 @@ button {
 }
 
 .btn-primary:hover {
-  background-color: #2b4c7e;
+  filter: brightness(1.15);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(30, 58, 95, 0.25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .btn-secondary {
@@ -181,7 +181,7 @@ button {
 }
 
 .btn-secondary:hover {
-  background-color: rgba(30, 58, 95, 0.05);
+  background-color: rgba(255, 255, 255, 0.05);
   transform: translateY(-2px);
 }
 
@@ -321,7 +321,7 @@ button {
   aspect-ratio: 4/5;
   width: 100%;
   overflow: hidden;
-  background-color: #f7f4f0;
+  background-color: #1a1715;
   cursor: pointer;
 }
 
@@ -340,7 +340,7 @@ button {
   position: absolute;
   top: 16px;
   left: 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(28, 25, 23, 0.85);
   backdrop-filter: blur(4px);
   border: 1px solid var(--border-light);
   padding: 4px 12px;
@@ -348,7 +348,7 @@ button {
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--primary-indigo);
+  color: var(--accent-gold);
   border-radius: 20px;
   z-index: 10;
 }
@@ -360,7 +360,7 @@ button {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(44, 40, 37, 0.15);
+  background: rgba(18, 16, 15, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -378,7 +378,7 @@ button {
   border: 4px double var(--accent-terracotta);
   padding: 12px 28px;
   border-radius: 4px;
-  background: rgba(252, 250, 246, 0.95);
+  background: rgba(28, 25, 23, 0.95);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), inset 0 0 10px rgba(178, 58, 34, 0.1);
   transform: rotate(-12deg);
   opacity: 0;
@@ -478,8 +478,8 @@ button {
 }
 
 .btn-whatsapp.sold {
-  background-color: #f3ede6;
-  color: #a3968d;
+  background-color: #2c2724;
+  color: #6e655f;
   box-shadow: none;
   cursor: not-allowed;
   pointer-events: none;
@@ -492,7 +492,7 @@ button {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(44, 40, 37, 0.9);
+  background: rgba(10, 9, 8, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -607,14 +607,15 @@ button {
   font-size: 14px;
   box-sizing: border-box;
   outline: none;
-  background: #faf9f6;
+  background: #252220;
+  color: var(--text-dark);
   transition: all 0.25s ease;
 }
 
 .form-input:focus, .form-textarea:focus, .form-select:focus {
   border-color: var(--accent-gold);
-  background: var(--bg-card);
-  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);
+  background: #2d2825;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);
 }
 
 /* File Upload Field */
@@ -623,14 +624,14 @@ button {
   border-radius: 8px;
   padding: 24px;
   text-align: center;
-  background: #faf9f6;
+  background: #252220;
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
 .file-upload-zone:hover {
   border-color: var(--accent-gold);
-  background: #fdfcf8;
+  background: #2d2926;
 }
 
 .upload-icon {
@@ -693,7 +694,7 @@ button {
 .switch-slider {
   width: 50px;
   height: 26px;
-  background-color: #ddd;
+  background-color: var(--border-light);
   border-radius: 13px;
   position: relative;
   cursor: pointer;

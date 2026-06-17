@@ -380,7 +380,7 @@ function App() {
           isAdminModeAllowed ? (
             // Detailed developer diagnostic panel
             <div className="container" style={{ padding: '60px 20px', maxWidth: '800px' }}>
-              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '40px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', border: '1px solid #ebdcb9' }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '40px', boxShadow: 'var(--shadow-premium)', border: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
                   <span style={{ fontSize: '32px' }}>⚙️</span>
                   <div>
@@ -389,16 +389,16 @@ function App() {
                   </div>
                 </div>
 
-                <div style={{ backgroundColor: '#fffaf0', borderLeft: '4px solid var(--accent-terracotta)', padding: '16px', borderRadius: '4px', marginBottom: '32px' }}>
+                <div style={{ backgroundColor: 'rgba(214, 162, 24, 0.05)', borderLeft: '4px solid var(--accent-terracotta)', padding: '16px', borderRadius: '4px', marginBottom: '32px' }}>
                   <strong style={{ color: 'var(--text-dark)', fontSize: '14px' }}>Connection Error Details:</strong>
-                  <p style={{ fontFamily: 'monospace', color: '#c53030', margin: '8px 0 0', fontSize: '13px', wordBreak: 'break-all' }}>
+                  <p style={{ fontFamily: 'monospace', color: '#fc8181', margin: '8px 0 0', fontSize: '13px', wordBreak: 'break-all' }}>
                     {dbError.message || JSON.stringify(dbError)}
                   </p>
                 </div>
 
                 <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary-indigo)', fontSize: '18px', marginBottom: '12px' }}>How to Resolve This in 1 Minute</h3>
                 <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                  This error typically occurs if the <code style={{ backgroundColor: '#f3ebdf', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px' }}>sarees</code> table is missing or if Supabase **Row-Level Security (RLS)** is preventing access without active policies.
+                  This error typically occurs if the <code style={{ backgroundColor: 'var(--bg-creme)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px' }}>sarees</code> table is missing or if Supabase **Row-Level Security (RLS)** is preventing access without active policies.
                 </p>
 
                 <ol style={{ fontSize: '14px', lineHeight: '1.8', color: 'var(--text-dark)', paddingLeft: '20px', marginBottom: '32px' }}>
@@ -596,14 +596,14 @@ create policy "Allow admin full access"
                   <>
                     <button 
                       onClick={handlePrev}
-                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', color: 'var(--text-dark)' }}
+                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(28,25,23,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', color: 'var(--text-dark)' }}
                       title="Previous Image"
                     >
                       <ChevronLeft size={20} />
                     </button>
                     <button 
                       onClick={handleNext}
-                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', color: 'var(--text-dark)' }}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(28,25,23,0.85)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', color: 'var(--text-dark)' }}
                       title="Next Image"
                     >
                       <ChevronRight size={20} />
@@ -623,7 +623,7 @@ create policy "Allow admin full access"
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: idx === activeImgIndex ? 'var(--accent-terracotta)' : '#cbd5e0',
+                        backgroundColor: idx === activeImgIndex ? 'var(--accent-terracotta)' : 'rgba(255, 255, 255, 0.3)',
                         border: 'none',
                         padding: '0',
                         cursor: 'pointer',

@@ -35,8 +35,8 @@ function SareeCardImage({ saree, onViewSaree }) {
   return (
     <div className="saree-image-wrapper" onClick={() => onViewSaree(saree)}>
       {loading ? (
-        <div style={{ width: '100%', height: '320px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdfbf7', gap: '12px', borderBottom: '1px solid var(--border-light)' }}>
-          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite' }}></div>
+        <div style={{ width: '100%', height: '320px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-card)', gap: '12px', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ border: '2px solid var(--border-light)', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite' }}></div>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Loading image...</span>
         </div>
       ) : (
