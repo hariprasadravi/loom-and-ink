@@ -481,8 +481,15 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
     );
 
     try {
-      // Trigger browser-based WebAssembly background removal
-      const resultBlob = await removeBackground(sourceUrl);
+      // Convert base64 dataURI to raw binary blob for maximum mobile browser compatibility
+      let sourceInput = sourceUrl;
+      if (sourceUrl.startsWith('data:')) {
+        const response = await fetch(sourceUrl);
+        sourceInput = await response.blob();
+      }
+
+      // Trigger browser-based WebAssembly background removal using the optimized 7.6MB model
+      const resultBlob = await removeBackground(sourceInput, { model: 'small' });
       
       // Convert result PNG blob to base64 dataURL
       const base64Url = await new Promise((resolve, reject) => {
