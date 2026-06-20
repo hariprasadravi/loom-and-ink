@@ -860,3 +860,18 @@ button {
   background: var(--primary-indigo); /* Indigo navy */
 }
 
+/* Responsive layout for About Us row */
+.about-row-flex {
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .about-row-flex {
+    flex-direction: column !important;
+    text-align: center !important;
+  }
+}
+

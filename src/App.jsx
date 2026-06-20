@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
+import AboutUs from './components/AboutUs';
 import { X, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 
@@ -350,6 +351,12 @@ function App() {
             >
               Showroom Catalog
             </button>
+            <button 
+              className={`nav-item ${activeTab === 'about' ? 'active' : ''}`}
+              onClick={() => setActiveTab('about')}
+            >
+              Our Story
+            </button>
             {isAdminModeAllowed && (
               <button 
                 className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
@@ -510,6 +517,8 @@ create policy "Allow admin full access"
             needsMigration={needsMigration}
             settings={settings}
           />
+        ) : activeTab === 'about' ? (
+          <AboutUs onBackToShowroom={() => setActiveTab('showroom')} />
         ) : isAdminModeAllowed && activeTab === 'admin' ? (
           <AdminPanel 
             sarees={sarees}
