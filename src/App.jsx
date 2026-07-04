@@ -7,6 +7,44 @@ import AboutUs from './components/AboutUs';
 import { X, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 
+const guessCurrencyFromTimezone = () => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return 'INR';
+    
+    if (tz.startsWith('America/')) {
+      const caTimezones = [
+        'America/Toronto', 'America/Vancouver', 'America/Winnipeg', 
+        'America/Edmonton', 'America/Halifax', 'America/St_Johns',
+        'America/Regina', 'America/Saskatoon', 'America/Glace_Bay',
+        'America/Moncton', 'America/Goose_Bay', 'America/Blanc-Sablon'
+      ];
+      if (caTimezones.includes(tz)) return 'CAD';
+      return 'USD';
+    }
+    
+    if (tz.startsWith('Europe/')) {
+      if (tz === 'Europe/London' || tz === 'Europe/Belfast') return 'GBP';
+      return 'EUR';
+    }
+    
+    if (tz.startsWith('Australia/') || tz.startsWith('Pacific/Guadalcanal') || tz.startsWith('Pacific/Norfolk')) {
+      return 'AUD';
+    }
+    
+    if (tz === 'Asia/Singapore' || tz === 'Singapore') {
+      return 'SGD';
+    }
+    
+    if (tz === 'Asia/Kolkata' || tz === 'Calcutta') {
+      return 'INR';
+    }
+  } catch (e) {
+    console.warn('Error guessing timezone:', e);
+  }
+  return 'INR';
+};
+
 function App() {
   const [sarees, setSarees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +71,7 @@ function App() {
     affiliates: []
   });
 
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState(guessCurrencyFromTimezone());
   const [rates, setRates] = useState({ INR: 1 });
 
   // Fetch user currency and exchange rates on mount
