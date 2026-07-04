@@ -48,6 +48,10 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
   const [newAffiliateName, setNewAffiliateName] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
+  
+  // Admin search & filter states for large catalog lists
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState('all');
 
   // Sync settings when settings prop updates
   useEffect(() => {
@@ -1393,27 +1397,27 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
               </div>
 
               {imagePreviews.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '12px', marginTop: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '16px', marginTop: '16px' }}>
                   {imagePreviews.map((img, index) => (
-                    <div key={index} style={{ position: 'relative', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <div key={index} style={{ position: 'relative', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '6px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       {img.url ? (
-                        <img src={img.url} alt={`upload-${index}`} style={{ width: '100%', height: '60px', objectFit: 'cover', borderRadius: '6px' }} />
+                        <img src={img.url} alt={`upload-${index}`} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px' }} />
                       ) : (
-                        <div style={{ width: '100%', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9', borderRadius: '6px' }}>
-                          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '12px', height: '12px', animation: 'spin 1s linear infinite' }}></div>
+                        <div style={{ width: '100%', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9', borderRadius: '6px' }}>
+                          <div style={{ border: '2px solid #eee', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '16px', height: '16px', animation: 'spin 1s linear infinite' }}></div>
                         </div>
                       )}
                       
                       {/* Interactive Buttons Row */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', justifyContent: 'space-around', borderTop: '1px solid var(--border-light)', paddingTop: '4px', marginTop: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', justifyContent: 'space-around', borderTop: '1px solid var(--border-light)', paddingTop: '6px', marginTop: '4px' }}>
                         {/* Set Cover Star Button */}
                         <button
                           type="button"
                           onClick={() => setAsCover(index)}
-                          style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           title={img.isCover ? "Main Thumbnail Cover" : "Set as Cover"}
                         >
-                          <Star size={13} fill={img.isCover ? "#c5a059" : "none"} stroke={img.isCover ? "#c5a059" : "var(--text-muted)"} />
+                          <Star size={16} fill={img.isCover ? "#c5a059" : "none"} stroke={img.isCover ? "#c5a059" : "var(--text-muted)"} />
                         </button>
 
                         {/* AI Clear Background Button */}
@@ -1421,10 +1425,10 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                           type="button"
                           onClick={() => handleAIClearBackground(index)}
                           disabled={img.processing || !img.url}
-                          style={{ background: 'none', border: 'none', padding: '2px', cursor: (img.processing || !img.url) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ background: 'none', border: 'none', padding: '4px', cursor: (img.processing || !img.url) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           title="Remove background (legs, sofa) using AI"
                         >
-                          <Sparkles size={13} style={{ color: 'var(--accent-terracotta)' }} />
+                          <Sparkles size={16} style={{ color: 'var(--accent-terracotta)' }} />
                         </button>
                       </div>
 
@@ -1432,7 +1436,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#c53030', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold', zIndex: 11 }}
+                        style={{ position: 'absolute', top: '-8px', right: '-8px', width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#c53030', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', border: 'none', cursor: 'pointer', fontWeight: 'bold', zIndex: 11 }}
                         title="Delete Image"
                       >
                         ×
@@ -1441,9 +1445,10 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                       {/* AI Loading/Processing Mask overlay */}
                       {img.processing && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, padding: '4px' }}>
-                          <div style={{ border: '2px solid #f3f3f3', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '16px', height: '16px', animation: 'spin 1s linear infinite', marginBottom: '4px' }}></div>
-                          <span style={{ fontSize: '8px', color: 'var(--accent-terracotta)', fontWeight: '700', textAlign: 'center', lineHeight: '1.1' }}>
-                            AI clearing {img.progressPercent !== undefined ? `(${img.progressPercent}%)` : ''}...
+                          <div style={{ border: '2px solid #f3f3f3', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite', marginBottom: '6px' }}></div>
+                          <span style={{ fontSize: '10px', color: 'var(--accent-terracotta)', fontWeight: '700', textAlign: 'center', lineHeight: '1.2' }}>
+                            AI clearing<br/>
+                            {img.progressPercent !== undefined ? `(${img.progressPercent}%)` : ''}
                           </span>
                         </div>
                       )}
@@ -1574,68 +1579,119 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
         {/* Right Side: Manage Existing Stock */}
         <div className="admin-card" style={{ margin: '0', maxWidth: '100%' }}>
-          <h2 style={{ fontSize: '24px', marginBottom: '24px', color: 'var(--primary-indigo)' }}>Live Catalog ({sarees.length})</h2>
+          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: 'var(--accent-gold)' }}>Live Catalog ({sarees.length})</h2>
           
-          <div className="admin-catalog-list" style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '6px' }}>
-            {sarees.length > 0 ? (
-              sarees.map((saree) => (
-                <div className="admin-saree-row" key={saree.id}>
-                  <AdminSareeRowThumb saree={saree} />
-                  <div className="admin-saree-meta">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div className="admin-saree-name">{saree.title}</div>
-                      {saree.draft && (
-                        <span style={{ backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Draft
-                        </span>
-                      )}
+          {/* Quick Search & Filters for 100+ Catalog */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            <input 
+              type="text"
+              placeholder="Search by Code or Title..."
+              value={adminSearch}
+              onChange={(e) => setAdminSearch(e.target.value)}
+              style={{
+                flex: 1,
+                background: 'rgba(28, 25, 23, 0.4)',
+                color: 'var(--text-dark)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                outline: 'none'
+              }}
+            />
+            <select
+              value={adminCategoryFilter}
+              onChange={(e) => setAdminCategoryFilter(e.target.value)}
+              style={{
+                background: 'rgba(28, 25, 23, 0.4)',
+                color: 'var(--text-dark)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                outline: 'none',
+                cursor: 'pointer',
+                width: '130px'
+              }}
+            >
+              <option value="all">All Categories</option>
+              {settings.categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-catalog-list" style={{ maxHeight: '800px', overflowY: 'auto', paddingRight: '6px' }}>
+            {(() => {
+              const filteredSarees = sarees.filter(s => {
+                const matchesSearch = (s.code || '').toLowerCase().includes(adminSearch.toLowerCase()) || 
+                                      (s.title || '').toLowerCase().includes(adminSearch.toLowerCase());
+                const matchesCategory = adminCategoryFilter === 'all' || s.type === adminCategoryFilter;
+                return matchesSearch && matchesCategory;
+              });
+
+              return filteredSarees.length > 0 ? (
+                filteredSarees.map((saree) => (
+                  <div className="admin-saree-row" key={saree.id}>
+                    <AdminSareeRowThumb saree={saree} />
+                    <div className="admin-saree-meta">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="admin-saree-name">{saree.title}</div>
+                        {saree.draft && (
+                          <span style={{ backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Draft
+                          </span>
+                        )}
+                      </div>
+                      <div className="admin-saree-type">
+                        Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                      </div>
                     </div>
-                    <div className="admin-saree-type">
-                      Code: <strong style={{ color: 'var(--text-dark)' }}>{saree.code}</strong> • {saree.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+
+                    {/* Sold Switch with Tooltip */}
+                    <div 
+                      className="switch-container"
+                      title="Toggle to instantly mark this item as Sold or Available."
+                    >
+                      <input 
+                        type="checkbox" 
+                        id={`sold-switch-${saree.id}`}
+                        checked={saree.sold}
+                        onChange={() => onToggleSold(saree.id)}
+                        className="switch-input-hidden"
+                      />
+                      <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
                     </div>
+
+                    {/* Edit button */}
+                    <button 
+                      onClick={() => startEditing(saree)}
+                      style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
+                      title="Edit Item Details"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+
+                    {/* Delete button */}
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete ${saree.title}?`)) {
+                          onDeleteSaree(saree.id);
+                        }
+                      }}
+                      style={{ color: '#c53030', padding: '6px' }}
+                      title="Delete Item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-
-                  {/* Sold Switch with Tooltip */}
-                  <div 
-                    className="switch-container"
-                    title="Toggle to instantly mark this item as Sold or Available."
-                  >
-                    <input 
-                      type="checkbox" 
-                      id={`sold-switch-${saree.id}`}
-                      checked={saree.sold}
-                      onChange={() => onToggleSold(saree.id)}
-                      className="switch-input-hidden"
-                    />
-                    <label htmlFor={`sold-switch-${saree.id}`} className="switch-slider"></label>
-                  </div>
-
-                  {/* Edit button */}
-                  <button 
-                    onClick={() => startEditing(saree)}
-                    style={{ color: 'var(--accent-gold)', padding: '6px', marginRight: '4px' }}
-                    title="Edit Item Details"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-
-                  {/* Delete button */}
-                  <button 
-                    onClick={() => {
-                      if (confirm(`Are you sure you want to delete ${saree.title}?`)) {
-                        onDeleteSaree(saree.id);
-                      }
-                    }}
-                    style={{ color: '#c53030', padding: '6px' }}
-                    title="Delete Item"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No items in showroom.</p>
-            )}
+                ))
+              ) : (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No matching items in showroom.</p>
+              );
+            })()}
           </div>
         </div>
 
