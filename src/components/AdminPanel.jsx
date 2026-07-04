@@ -477,7 +477,7 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
 
     // Set processing state for this image preview card
     setImagePreviews((prev) =>
-      prev.map((img, i) => (i === index ? { ...img, processing: true } : img))
+      prev.map((img, i) => (i === index ? { ...img, processing: true, progressPercent: 0 } : img))
     );
 
     try {
@@ -489,7 +489,19 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       }
 
       // Trigger browser-based WebAssembly background removal using the optimized 7.6MB model
-      const resultBlob = await removeBackground(sourceInput, { model: 'small' });
+      // Fetching files from the official fast-loading static package asset CDN to bypass slow unpkg redirects
+      const resultBlob = await removeBackground(sourceInput, {
+        model: 'small',
+        publicPath: 'https://static.img.ly/packages/@imgly/background-removal-data/1.7.0/dist/',
+        progress: (key, current, total) => {
+          const percent = Math.round((current / total) * 100);
+          setImagePreviews((prev) =>
+            prev.map((img, i) =>
+              i === index ? { ...img, progressPercent: percent } : img
+            )
+          );
+        }
+      });
       
       // Convert result PNG blob to base64 dataURL
       const base64Url = await new Promise((resolve, reject) => {
@@ -505,14 +517,14 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
       // Update image previews state with processed data URL
       setImagePreviews((prev) =>
         prev.map((img, i) =>
-          i === index ? { ...img, url: compressedBgRemoved, processing: false } : img
+          i === index ? { ...img, url: compressedBgRemoved, processing: false, progressPercent: undefined } : img
         )
       );
     } catch (err) {
       console.error('Error running AI background removal:', err);
       alert('AI background removal encountered an issue. The original photo will be used instead.');
       setImagePreviews((prev) =>
-        prev.map((img, i) => (i === index ? { ...img, processing: false } : img))
+        prev.map((img, i) => (i === index ? { ...img, processing: false, progressPercent: undefined } : img))
       );
     }
   };
@@ -1430,7 +1442,9 @@ export default function AdminPanel({ sarees, onAddSaree, onUpdateSaree, onToggle
                       {img.processing && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, padding: '4px' }}>
                           <div style={{ border: '2px solid #f3f3f3', borderTop: '2px solid var(--accent-terracotta)', borderRadius: '50%', width: '16px', height: '16px', animation: 'spin 1s linear infinite', marginBottom: '4px' }}></div>
-                          <span style={{ fontSize: '8px', color: 'var(--accent-terracotta)', fontWeight: '700', textAlign: 'center', lineHeight: '1.1' }}>AI clearing...</span>
+                          <span style={{ fontSize: '8px', color: 'var(--accent-terracotta)', fontWeight: '700', textAlign: 'center', lineHeight: '1.1' }}>
+                            AI clearing {img.progressPercent !== undefined ? `(${img.progressPercent}%)` : ''}...
+                          </span>
                         </div>
                       )}
                     </div>
