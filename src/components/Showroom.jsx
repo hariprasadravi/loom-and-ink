@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Sparkles } from 'lucide-react';
-import { getImagePath } from '../utils/helpers';
+import { getImagePath, formatCurrency } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
 function SareeCardImage({ saree, onViewSaree }) {
@@ -58,10 +58,10 @@ function SareeCardImage({ saree, onViewSaree }) {
   );
 }
 
-export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835", settings }) {
+export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840709835", settings, currency = 'INR', rates = { INR: 1 } }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
-  const [activeType, setActiveType] = useState('all');
+  const [activeType, setActiveType] = useState('silk-cotton');
   const [visibleCount, setVisibleCount] = useState(12);
 
   // Reset pagination count when active filters change
@@ -216,15 +216,15 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                           {saree.original_price ? (
                             <>
                               <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                                ₹{saree.price}
+                                {formatCurrency(saree.price, currency, rates)}
                               </span>
                               <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '14px', fontFamily: 'var(--font-serif)' }}>
-                                ₹{saree.original_price}
+                                {formatCurrency(saree.original_price, currency, rates)}
                               </span>
                             </>
                           ) : (
                             <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                              ₹{saree.price || '5,000'}
+                              {formatCurrency(saree.price || '5,000', currency, rates)}
                             </span>
                           )}
                         </div>

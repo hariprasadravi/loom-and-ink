@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatCurrency } from './utils/helpers';
 import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
@@ -31,6 +32,50 @@ function App() {
     ],
     affiliates: []
   });
+
+  const [currency, setCurrency] = useState('INR');
+  const [rates, setRates] = useState({ INR: 1 });
+
+  // Fetch user currency and exchange rates on mount
+  useEffect(() => {
+    const initializeCurrencyAndRates = async () => {
+      let detectedCurrency = 'INR';
+      let fetchedRates = { INR: 1 };
+
+      // 1. Fetch live exchange rates relative to INR
+      try {
+        const ratesRes = await fetch('https://open.er-api.com/v6/latest/INR');
+        if (ratesRes.ok) {
+          const ratesData = await ratesRes.json();
+          if (ratesData && ratesData.rates) {
+            fetchedRates = ratesData.rates;
+            setRates(fetchedRates);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch exchange rates, falling back to 1:1 INR:', err);
+      }
+
+      // 2. Detect user location and currency
+      try {
+        const geoRes = await fetch('https://ipapi.co/json/');
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData && geoData.currency) {
+            detectedCurrency = geoData.currency;
+            // Only use if the currency is supported by our rates
+            if (fetchedRates[detectedCurrency]) {
+              setCurrency(detectedCurrency);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to detect user location/currency, defaulting to INR:', err);
+      }
+    };
+
+    initializeCurrencyAndRates();
+  }, []);
 
   // URL parsing for secret admin key (?nirvahi) and affiliate referral (?ref=...)
   useEffect(() => {
@@ -365,6 +410,30 @@ function App() {
                 Admin
               </button>
             )}
+
+            <select 
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              style={{
+                background: 'rgba(28, 25, 23, 0.6)',
+                color: 'var(--text-dark)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="INR">₹ INR</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="CAD">C$ CAD</option>
+              <option value="AUD">A$ AUD</option>
+              <option value="SGD">S$ SGD</option>
+            </select>
           </nav>
         </div>
       </header>
@@ -516,6 +585,8 @@ create policy "Allow admin full access"
             whatsappNumber="919840709835"
             needsMigration={needsMigration}
             settings={settings}
+            currency={currency}
+            rates={rates}
           />
         ) : activeTab === 'about' ? (
           <AboutUs onBackToShowroom={() => setActiveTab('showroom')} />
@@ -538,6 +609,8 @@ create policy "Allow admin full access"
             whatsappNumber="919840709835"
             needsMigration={needsMigration}
             settings={settings}
+            currency={currency}
+            rates={rates}
           />
         )}
       </main>
@@ -668,15 +741,15 @@ create policy "Allow admin full access"
                         {selectedSaree.original_price ? (
                           <>
                             <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
-                              ₹{selectedSaree.price}
+                              {formatCurrency(selectedSaree.price, currency, rates)}
                             </span>
                             <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '15px', fontFamily: 'var(--font-serif)' }}>
-                              ₹{selectedSaree.original_price}
+                              {formatCurrency(selectedSaree.original_price, currency, rates)}
                             </span>
                           </>
                         ) : (
                           <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
-                            ₹{selectedSaree.price || '5,000'}
+                            {formatCurrency(selectedSaree.price || '5,000', currency, rates)}
                           </span>
                         )}
                       </div>
