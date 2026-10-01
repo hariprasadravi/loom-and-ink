@@ -4,7 +4,7 @@ import { initialSarees } from './data/mockSarees';
 import Showroom from './components/Showroom';
 import AdminPanel from './components/AdminPanel';
 import AboutUs from './components/AboutUs';
-import { X, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { X, Loader2, ChevronLeft, ChevronRight, Sparkles, Truck } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 
 const guessCurrencyFromTimezone = () => {
@@ -779,25 +779,33 @@ create policy "Allow admin full access"
                         {selectedSaree.original_price ? (
                           <>
                             <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
-                              {formatCurrency(selectedSaree.price, currency, rates)}
+                              {formatCurrency(selectedSaree.price, currency, rates, !selectedSaree.sold)}
                             </span>
                             <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '15px', fontFamily: 'var(--font-serif)' }}>
-                              {formatCurrency(selectedSaree.original_price, currency, rates)}
+                              {formatCurrency(selectedSaree.original_price, currency, rates, !selectedSaree.sold)}
                             </span>
                           </>
                         ) : (
                           <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '20px', fontFamily: 'var(--font-serif)' }}>
-                            {formatCurrency(selectedSaree.price || '5,000', currency, rates)}
+                            {formatCurrency(selectedSaree.price || '5,000', currency, rates, !selectedSaree.sold)}
                           </span>
                         )}
                       </div>
                     </div>
-                    {discountPct && (
-                      <div style={{ display: 'flex', alignSelf: 'flex-end', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700', color: 'var(--accent-gold)' }}>
-                        <Sparkles size={11} />
-                        {settings.saleBadgeTamil} ({settings.saleBadgeEnglish}) • {discountPct}% Off
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', alignSelf: 'flex-end', flexWrap: 'wrap' }}>
+                      {discountPct && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                          <Sparkles size={11} />
+                          {settings.saleBadgeTamil} ({settings.saleBadgeEnglish}) • {discountPct}% Off
+                        </div>
+                      )}
+                      {!selectedSaree.sold && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(197, 160, 89, 0.12)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                          <Truck size={12} />
+                          Free Shipping
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

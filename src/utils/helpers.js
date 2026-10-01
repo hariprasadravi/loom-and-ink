@@ -21,7 +21,7 @@ export const getImagePath = (image) => {
  * Converts a price in INR to the target currency using exchange rates
  * and formats it using the browser's Intl formatting.
  */
-export const formatCurrency = (priceStr, targetCurrency = 'INR', exchangeRates = { INR: 1 }) => {
+export const formatCurrency = (priceStr, targetCurrency = 'INR', exchangeRates = { INR: 1 }, isForSale = false) => {
   if (!priceStr) return '';
 
   // Parse numeric value from string (e.g. "5,000" -> 5000)
@@ -40,8 +40,20 @@ export const formatCurrency = (priceStr, targetCurrency = 'INR', exchangeRates =
     }).format(numericPrice);
   }
 
-  // Convert price
-  const converted = numericPrice * rate;
+  // Convert base price
+  let converted = numericPrice * rate;
+
+  // For non-India audience, inflate cost price of items for sale (not sold) by $8 USD equivalent
+  if (targetCurrency !== 'INR' && isForSale) {
+    const usdRate = exchangeRates['USD'] || (targetCurrency === 'USD' ? rate : 0.012);
+    const markupInTargetCurrency = 8 * (rate / usdRate);
+    converted += markupInTargetCurrency;
+  }
+
+  // For US audience, ensure the value shown in dollars is rounded to the nearest multiple of 5
+  if (targetCurrency === 'USD') {
+    converted = Math.max(5, Math.round(converted / 5) * 5);
+  }
 
   // Format currency
   let locale = 'en-US';

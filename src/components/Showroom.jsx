@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles } from 'lucide-react';
+import { Search, Sparkles, Truck } from 'lucide-react';
 import { getImagePath, formatCurrency } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
@@ -216,24 +216,32 @@ export default function Showroom({ sarees, onViewSaree, whatsappNumber = "919840
                           {saree.original_price ? (
                             <>
                               <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                                {formatCurrency(saree.price, currency, rates)}
+                                {formatCurrency(saree.price, currency, rates, !saree.sold)}
                               </span>
                               <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '14px', fontFamily: 'var(--font-serif)' }}>
-                                {formatCurrency(saree.original_price, currency, rates)}
+                                {formatCurrency(saree.original_price, currency, rates, !saree.sold)}
                               </span>
                             </>
                           ) : (
                             <span style={{ color: 'var(--accent-terracotta)', fontWeight: '700', fontSize: '18px', fontFamily: 'var(--font-serif)' }}>
-                              {formatCurrency(saree.price || '5,000', currency, rates)}
+                              {formatCurrency(saree.price || '5,000', currency, rates, !saree.sold)}
                             </span>
                           )}
                         </div>
-                        {discountPct && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '700', color: 'var(--accent-gold)' }}>
-                            <Sparkles size={10} />
-                            {settings.saleBadgeTamil} • {discountPct}% Off
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                          {discountPct && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(214, 162, 24, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                              <Sparkles size={10} />
+                              {settings.saleBadgeTamil} • {discountPct}% Off
+                            </div>
+                          )}
+                          {!saree.sold && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(197, 160, 89, 0.12)', border: '1px solid var(--accent-gold)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                              <Truck size={11} />
+                              Free Shipping
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })()}
